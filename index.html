@@ -4,14 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0a0a15">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
 <title>SAYED — حارس الحدود</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- ============ LOADING ============ -->
 <div id="loading-screen">
     <div class="loader-emblem">
         <div class="emblem-ring"></div>
@@ -24,7 +21,6 @@
     <div class="loader-skip" id="loaderSkip">اضغط للتخطي ←</div>
 </div>
 
-<!-- ============ GAME ============ -->
 <div id="game-container">
     <canvas id="gameCanvas" width="960" height="540"></canvas>
 
@@ -41,7 +37,6 @@
                 <span id="hudGrid">GRID 22-R</span>
             </div>
         </div>
-
         <div class="hud-left">
             <div class="hud-bar">
                 <span class="bar-label">VITALS</span>
@@ -52,7 +47,6 @@
                 <div class="bar-track"><div class="bar-fill stamina-fill" id="staminaFill"></div></div>
             </div>
         </div>
-
         <div class="hud-right">
             <div class="hud-score">
                 <span class="score-label">INTEL</span>
@@ -60,34 +54,30 @@
             </div>
             <div class="hud-combo" id="hudCombo">×1</div>
         </div>
-
         <div class="hud-mission">
             <span class="mission-tag">◤ MISSION ◢</span>
             <span class="mission-text" id="missionText">—</span>
         </div>
-
         <div class="hud-bottom">
             <div class="objective-progress" id="objectiveProgress"></div>
         </div>
     </div>
 
-    <!-- Pause Button -->
-    <button id="btn-pause" class="btn-pause hidden" aria-label="Pause">❚❚</button>
+    <button id="btn-pause" class="btn-pause hidden">❚❚</button>
 
-    <!-- Mobile Controls -->
+    <!-- Mobile Controls (using image assets) -->
     <div id="mobile-controls" class="mobile-controls hidden">
         <div class="mc-left">
-            <button class="mc-btn mc-dpad" id="btn-left">◀</button>
-            <button class="mc-btn mc-dpad" id="btn-right">▶</button>
+            <button class="mc-btn mc-img-btn" id="btn-left"><img src="https://i.ibb.co/QvpP5yhS/assets.png" alt="left"></button>
+            <button class="mc-btn mc-img-btn" id="btn-right"><img src="https://i.ibb.co/QvpP5yhS/assets.png" alt="right" style="transform:scaleX(-1)"></button>
         </div>
         <div class="mc-right">
-            <button class="mc-btn mc-action mc-crouch" id="btn-crouch">▼</button>
-            <button class="mc-btn mc-action mc-jump" id="btn-jump">▲</button>
-            <button class="mc-btn mc-action mc-interact" id="btn-interact">✦</button>
+            <button class="mc-btn mc-img-btn" id="btn-crouch"><img src="https://i.ibb.co/QvpP5yhS/assets.png" alt="crouch" style="transform:rotate(180deg)"></button>
+            <button class="mc-btn mc-img-btn" id="btn-jump"><img src="https://i.ibb.co/QvpP5yhS/assets.png" alt="jump" style="transform:rotate(-90deg)"></button>
+            <button class="mc-btn mc-img-btn" id="btn-interact"><img src="https://i.ibb.co/QvpP5yhS/assets.png" alt="interact"></button>
         </div>
     </div>
 
-    <!-- Radio -->
     <div id="radioChatter" class="radio-chatter hidden">
         <span class="radio-icon">📻</span>
         <span class="radio-text" id="radioText"></span>
@@ -106,7 +96,6 @@
                 <div class="briefing-row"><span class="lbl">الموقع:</span><span id="briefingLoc">جنوب البحر الأحمر</span></div>
                 <div class="briefing-row"><span class="lbl">التوقيت:</span><span id="briefingTime">05:45</span></div>
                 <div class="briefing-row"><span class="lbl">المهمة:</span><span id="briefingObjective">—</span></div>
-                <div class="briefing-row"><span class="lbl">التصنيف:</span><span class="briefing-level">ROUTINE PATROL</span></div>
             </div>
             <div class="briefing-line"></div>
             <div class="briefing-hint" id="briefingHint">تنقّل بحذر.</div>
@@ -114,7 +103,7 @@
         </div>
     </div>
 
-    <!-- Mission Complete -->
+    <!-- Overlays -->
     <div id="missionComplete" class="overlay hidden">
         <div class="overlay-panel">
             <div class="overlay-stamp success">MISSION COMPLETE</div>
@@ -130,7 +119,6 @@
         </div>
     </div>
 
-    <!-- Game Over -->
     <div id="gameOver" class="overlay hidden">
         <div class="overlay-panel danger">
             <div class="overlay-stamp fail">MISSION FAILED</div>
@@ -144,7 +132,6 @@
         </div>
     </div>
 
-    <!-- Pause -->
     <div id="pauseOverlay" class="overlay hidden">
         <div class="overlay-panel">
             <div class="overlay-stamp neutral">PAUSED</div>
@@ -157,7 +144,6 @@
         </div>
     </div>
 
-    <!-- Settings -->
     <div id="settingsPanel" class="overlay hidden">
         <div class="overlay-panel">
             <div class="overlay-stamp neutral">SETTINGS</div>
@@ -182,11 +168,14 @@
         </div>
     </div>
 
-    <!-- Main Menu -->
+    <!-- Main Menu with Sayed Portrait -->
     <div id="mainMenu" class="main-menu hidden">
         <div class="menu-bg"></div>
         <div class="menu-vignette"></div>
-        <div class="menu-sayed" id="menuSayed"></div>
+
+        <div class="menu-sayed-wrap">
+            <img id="menuSayedImg" class="menu-sayed-img" src="https://i.ibb.co/nN47cnR9/Sayed.png" alt="Sayed">
+        </div>
 
         <div class="menu-content">
             <div class="menu-badge">MILITARY OPERATIONS</div>
@@ -204,12 +193,11 @@
 
             <div class="menu-footer">
                 <span id="menuHighScore">HIGH SCORE: 0</span>
-                <span class="menu-ver">v2.0 · BUILD 2024</span>
+                <span class="menu-ver">v3.0 · BUILD 2024</span>
             </div>
         </div>
     </div>
 
-    <!-- Missions Grid -->
     <div id="missionsPanel" class="overlay hidden">
         <div class="overlay-panel wide">
             <div class="overlay-stamp neutral">OPERATIONS</div>
@@ -218,7 +206,6 @@
         </div>
     </div>
 
-    <!-- Manual -->
     <div id="manualPanel" class="overlay hidden">
         <div class="overlay-panel wide">
             <div class="overlay-stamp neutral">FIELD MANUAL</div>
@@ -236,15 +223,11 @@
                 </div>
                 <div class="manual-section">
                     <h3>🎯 الهدف</h3>
-                    <p>اعبر المناطق الصحراوية والجبلية، اجمع المؤن والذخيرة، وتجنب العوائق والصخور المتساقطة.</p>
+                    <p>اعبر من جبال مصر إلى السودان لأداء المهمة. اجمع العملات والروح، تجنب العوائق.</p>
                 </div>
                 <div class="manual-section">
-                    <h3>⚡ المكافآت</h3>
-                    <p>جمع متتالي = Combo ×5. كل 500 نقطة = درع مؤقت. الماء يستعيد الطاقة.</p>
-                </div>
-                <div class="manual-section">
-                    <h3>⚠ التحذيرات</h3>
-                    <p>العواصف الرملية تُنقص الطاقة. الصخور المتساقطة تسبب إصابات. راقب مؤشر VITALS.</p>
+                    <h3>💎 الرموز</h3>
+                    <p>🪙 عملة = +10 نقاط | 💖 روح = +صحة | 💧 ماء = +طاقة</p>
                 </div>
             </div>
             <button class="btn-secondary" id="btnCloseManual">← BACK</button>
@@ -254,4 +237,4 @@
 
 <script src="script.js"></script>
 </body>
-                                                                                                                             </html>
+</html>
