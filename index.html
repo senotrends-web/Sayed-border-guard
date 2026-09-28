@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0a0a15">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>SAYED — حارس الحدود</title>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -24,40 +25,62 @@
 <div id="game-container">
     <canvas id="gameCanvas" width="960" height="540"></canvas>
 
+    <div id="scanlines" class="scanlines"></div>
+    <div id="alerts" class="alerts hidden">
+        <div class="alert-line" id="alertLine">⚠ ALERT</div>
+    </div>
+
     <!-- HUD -->
     <div id="hud" class="hud hidden">
         <div class="hud-top">
             <div class="hud-op">
-                <span class="op-label">OPERATION</span>
+                <span class="op-badge">CLASSIFIED</span>
                 <span class="op-name" id="hudOpName">DESERT WATCH</span>
             </div>
             <div class="hud-status">
+                <span class="hud-signal">▮▮▮▯</span>
                 <span id="hudTime">06:00</span>
                 <span class="sep">|</span>
                 <span id="hudGrid">GRID 22-R</span>
             </div>
         </div>
+
         <div class="hud-left">
             <div class="hud-bar">
                 <span class="bar-label">VITALS</span>
                 <div class="bar-track"><div class="bar-fill health-fill" id="healthFill"></div></div>
+                <span class="bar-val" id="healthVal">5/5</span>
             </div>
             <div class="hud-bar">
                 <span class="bar-label">STAMINA</span>
                 <div class="bar-track"><div class="bar-fill stamina-fill" id="staminaFill"></div></div>
+                <span class="bar-val" id="staminaVal">100%</span>
             </div>
         </div>
+
         <div class="hud-right">
+            <div class="radar">
+                <div class="radar-circle">
+                    <div class="radar-sweep"></div>
+                    <div class="radar-dot" id="radarDot"></div>
+                </div>
+                <span class="radar-label">RADAR</span>
+            </div>
             <div class="hud-score">
                 <span class="score-label">INTEL</span>
                 <span class="score-value" id="hudScore">0</span>
             </div>
-            <div class="hud-combo" id="hudCombo">×1</div>
         </div>
+
+        <div class="hud-combo" id="hudCombo">×1</div>
+
         <div class="hud-mission">
             <span class="mission-tag">◤ MISSION ◢</span>
             <span class="mission-text" id="missionText">—</span>
         </div>
+
+        <div class="hud-distance"><span id="distanceDisplay">0000m</span></div>
+
         <div class="hud-bottom">
             <div class="objective-progress" id="objectiveProgress"></div>
         </div>
@@ -65,16 +88,26 @@
 
     <button id="btn-pause" class="btn-pause hidden">❚❚</button>
 
-    <!-- Mobile Controls (using image assets) -->
+    <!-- MOBILE CONTROLS -->
     <div id="mobile-controls" class="mobile-controls hidden">
         <div class="mc-left">
-            <button class="mc-btn mc-img-btn" id="btn-left"><img src="https://i.ibb.co/QvpP5yhS/assets.png" alt="left"></button>
-            <button class="mc-btn mc-img-btn" id="btn-right"><img src="https://i.ibb.co/QvpP5yhS/assets.png" alt="right" style="transform:scaleX(-1)"></button>
+            <button class="mc-btn mc-btn-left" id="btn-left">
+                <img src="https://i.ibb.co/QvpP5yhS/assets.png" class="mc-icon-img mc-left-img" alt="left">
+            </button>
+            <button class="mc-btn mc-btn-right" id="btn-right">
+                <img src="https://i.ibb.co/QvpP5yhS/assets.png" class="mc-icon-img mc-right-img" alt="right">
+            </button>
         </div>
         <div class="mc-right">
-            <button class="mc-btn mc-img-btn" id="btn-crouch"><img src="https://i.ibb.co/QvpP5yhS/assets.png" alt="crouch" style="transform:rotate(180deg)"></button>
-            <button class="mc-btn mc-img-btn" id="btn-jump"><img src="https://i.ibb.co/QvpP5yhS/assets.png" alt="jump" style="transform:rotate(-90deg)"></button>
-            <button class="mc-btn mc-img-btn" id="btn-interact"><img src="https://i.ibb.co/QvpP5yhS/assets.png" alt="interact"></button>
+            <button class="mc-btn mc-btn-crouch" id="btn-crouch">
+                <img src="https://i.ibb.co/QvpP5yhS/assets.png" class="mc-icon-img mc-down-img" alt="crouch">
+            </button>
+            <button class="mc-btn mc-btn-jump" id="btn-jump">
+                <img src="https://i.ibb.co/QvpP5yhS/assets.png" class="mc-icon-img mc-up-img" alt="jump">
+            </button>
+            <button class="mc-btn mc-btn-interact" id="btn-interact">
+                <span class="mc-star">✦</span>
+            </button>
         </div>
     </div>
 
@@ -83,27 +116,27 @@
         <span class="radio-text" id="radioText"></span>
     </div>
 
-    <!-- Briefing -->
+    <!-- BRIEFING -->
     <div id="briefing" class="briefing hidden">
         <div class="briefing-panel">
             <div class="briefing-header">
                 <span class="briefing-classified">CLASSIFIED</span>
                 <span class="briefing-num" id="briefingNum">MISSION 01</span>
             </div>
-            <h2 class="briefing-title" id="briefingTitle">بداية الدورية</h2>
+            <h2 class="briefing-title" id="briefingTitle">—</h2>
             <div class="briefing-line"></div>
             <div class="briefing-section">
-                <div class="briefing-row"><span class="lbl">الموقع:</span><span id="briefingLoc">جنوب البحر الأحمر</span></div>
-                <div class="briefing-row"><span class="lbl">التوقيت:</span><span id="briefingTime">05:45</span></div>
+                <div class="briefing-row"><span class="lbl">الموقع:</span><span id="briefingLoc">—</span></div>
+                <div class="briefing-row"><span class="lbl">التوقيت:</span><span id="briefingTime">—</span></div>
                 <div class="briefing-row"><span class="lbl">المهمة:</span><span id="briefingObjective">—</span></div>
             </div>
             <div class="briefing-line"></div>
-            <div class="briefing-hint" id="briefingHint">تنقّل بحذر.</div>
-            <button class="btn-deploy" id="btnDeploy">▶ DEPLOY</button>
+            <div class="briefing-hint" id="briefingHint">—</div>
+            <button class="btn-deploy" id="btnDeploy">▶ DEPLOY — ابدأ المهمة</button>
         </div>
     </div>
 
-    <!-- Overlays -->
+    <!-- MISSION COMPLETE -->
     <div id="missionComplete" class="overlay hidden">
         <div class="overlay-panel">
             <div class="overlay-stamp success">MISSION COMPLETE</div>
@@ -119,19 +152,21 @@
         </div>
     </div>
 
+    <!-- GAME OVER -->
     <div id="gameOver" class="overlay hidden">
         <div class="overlay-panel danger">
             <div class="overlay-stamp fail">MISSION FAILED</div>
             <div class="overlay-msg">انتهت المهمة...</div>
             <div class="stats-grid">
                 <div class="stat"><span class="stat-lbl">SCORE</span><span class="stat-val" id="overScore">0</span></div>
-                <div class="stat"><span class="stat-lbl">LEVEL</span><span class="stat-val" id="overLevel">1</span></div>
+                <div class="stat"><span class="stat-lbl">DISTANCE</span><span class="stat-val" id="overDistance">0m</span></div>
             </div>
             <button class="btn-retry" id="btnRetry">↻ TRY AGAIN</button>
             <button class="btn-menu" id="btnMenuFromOver">MENU</button>
         </div>
     </div>
 
+    <!-- PAUSE -->
     <div id="pauseOverlay" class="overlay hidden">
         <div class="overlay-panel">
             <div class="overlay-stamp neutral">PAUSED</div>
@@ -144,33 +179,26 @@
         </div>
     </div>
 
+    <!-- SETTINGS -->
     <div id="settingsPanel" class="overlay hidden">
         <div class="overlay-panel">
             <div class="overlay-stamp neutral">SETTINGS</div>
             <div class="settings-rows">
-                <div class="settings-row">
-                    <label>🔊 الصوت الرئيسي</label>
-                    <input type="range" id="volMaster" min="0" max="1" step="0.05" value="0.7">
-                    <span id="volMasterVal">70%</span>
-                </div>
-                <div class="settings-row">
-                    <label>🎵 الموسيقى</label>
-                    <input type="range" id="volMusic" min="0" max="1" step="0.05" value="0.4">
-                    <span id="volMusicVal">40%</span>
-                </div>
-                <div class="settings-row">
-                    <label>💥 المؤثرات</label>
-                    <input type="range" id="volSfx" min="0" max="1" step="0.05" value="0.8">
-                    <span id="volSfxVal">80%</span>
-                </div>
+                <div class="settings-row"><label>🔊 الصوت</label><input type="range" id="volMaster" min="0" max="1" step="0.05" value="0.7"><span id="volMasterVal">70%</span></div>
+                <div class="settings-row"><label>🎵 الموسيقى</label><input type="range" id="volMusic" min="0" max="1" step="0.05" value="0.4"><span id="volMusicVal">40%</span></div>
+                <div class="settings-row"><label>💥 المؤثرات</label><input type="range" id="volSfx" min="0" max="1" step="0.05" value="0.8"><span id="volSfxVal">80%</span></div>
             </div>
             <button class="btn-primary" id="btnCloseSettings">حفظ وإغلاق</button>
         </div>
     </div>
 
-    <!-- Main Menu with Sayed Portrait -->
+    <!-- MAIN MENU -->
     <div id="mainMenu" class="main-menu hidden">
-        <div class="menu-bg"></div>
+        <div class="menu-bg-night"></div>
+        <div class="menu-stars"></div>
+        <div class="menu-moon"></div>
+        <div class="menu-mountains-far"></div>
+        <div class="menu-mountains-near"></div>
         <div class="menu-vignette"></div>
 
         <div class="menu-sayed-wrap">
@@ -184,7 +212,8 @@
             <div class="menu-line"></div>
 
             <div class="menu-buttons">
-                <button class="menu-btn primary" id="menuStart"><span class="btn-icon">▶</span><span>DEPLOY — بدء المهمة</span></button>
+                <button class="menu-btn primary" id="menuStart"><span class="btn-icon">▶</span><span>DEPLOY — الحملة الكاملة</span></button>
+                <button class="menu-btn endless" id="menuEndless"><span class="btn-icon">∞</span><span>ENDLESS — مهمة مفتوحة</span></button>
                 <button class="menu-btn" id="menuContinue"><span class="btn-icon">⏵</span><span>CONTINUE — متابعة</span></button>
                 <button class="menu-btn" id="menuMissions"><span class="btn-icon">🗺</span><span>OPERATIONS — العمليات</span></button>
                 <button class="menu-btn" id="menuSettings"><span class="btn-icon">⚙</span><span>SETTINGS — الإعدادات</span></button>
@@ -193,7 +222,7 @@
 
             <div class="menu-footer">
                 <span id="menuHighScore">HIGH SCORE: 0</span>
-                <span class="menu-ver">v3.0 · BUILD 2024</span>
+                <span class="menu-ver">v4.0 · BUILD 2024</span>
             </div>
         </div>
     </div>
@@ -215,19 +244,20 @@
                     <div class="manual-keys">
                         <div><span class="kbd">A / ←</span> يسار</div>
                         <div><span class="kbd">D / →</span> يمين</div>
-                        <div><span class="kbd">Space</span> قفز (×2)</div>
+                        <div><span class="kbd">Space</span> قفز مزدوج</div>
                         <div><span class="kbd">S / ↓</span> انحناء</div>
                         <div><span class="kbd">E</span> تفاعل</div>
                         <div><span class="kbd">ESC</span> إيقاف</div>
                     </div>
                 </div>
                 <div class="manual-section">
-                    <h3>🎯 الهدف</h3>
-                    <p>اعبر من جبال مصر إلى السودان لأداء المهمة. اجمع العملات والروح، تجنب العوائق.</p>
+                    <h3>🎯 الأنماط</h3>
+                    <p><b>CAMPAIGN</b>: 8 مراحل بحدود مصر والسودان.<br>
+                       <b>ENDLESS</b>: مهمة مفتوحة بلا نهاية — اصمد أطول وقت ممكن.</p>
                 </div>
                 <div class="manual-section">
                     <h3>💎 الرموز</h3>
-                    <p>🪙 عملة = +10 نقاط | 💖 روح = +صحة | 💧 ماء = +طاقة</p>
+                    <p>🪙 عملة = +10 | 💖 روح = +25 +صحة | 🛡 درع كل 500 نقطة</p>
                 </div>
             </div>
             <button class="btn-secondary" id="btnCloseManual">← BACK</button>
@@ -237,4 +267,4 @@
 
 <script src="script.js"></script>
 </body>
-</html>
+            </html>
