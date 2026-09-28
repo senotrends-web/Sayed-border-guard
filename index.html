@@ -6,283 +6,252 @@
 <meta name="theme-color" content="#0a0a15">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<title>SAYED — حارس الحدود | Border Guard</title>
+<title>SAYED — حارس الحدود</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+<!-- ============ LOADING ============ -->
 <div id="loading-screen">
-<div class="loader-emblem">
-<div class="emblem-ring"></div>
-<div class="emblem-star">★</div>
-</div>
-<div class="loader-title">SAYED — BORDER GUARD</div>
-<div class="loader-sub">تحميل الأصول العسكرية...</div>
-<div class="loader-bar"><div class="loader-fill" id="loaderFill"></div></div>
-<div class="loader-pct" id="loaderPct">0%</div>
+    <div class="loader-emblem">
+        <div class="emblem-ring"></div>
+        <div class="emblem-star">★</div>
+    </div>
+    <div class="loader-title">SAYED — BORDER GUARD</div>
+    <div class="loader-sub">تحميل الأصول العسكرية...</div>
+    <div class="loader-bar"><div class="loader-fill" id="loaderFill"></div></div>
+    <div class="loader-pct" id="loaderPct">0%</div>
+    <div class="loader-skip" id="loaderSkip">اضغط للتخطي ←</div>
 </div>
 
+<!-- ============ GAME ============ -->
 <div id="game-container">
+    <canvas id="gameCanvas" width="960" height="540"></canvas>
 
-<canvas id="gameCanvas" width="960" height="540"></canvas>
+    <!-- HUD -->
+    <div id="hud" class="hud hidden">
+        <div class="hud-top">
+            <div class="hud-op">
+                <span class="op-label">OPERATION</span>
+                <span class="op-name" id="hudOpName">DESERT WATCH</span>
+            </div>
+            <div class="hud-status">
+                <span id="hudTime">06:00</span>
+                <span class="sep">|</span>
+                <span id="hudGrid">GRID 22-R</span>
+            </div>
+        </div>
 
-<!-- HUD Overlay -->
-<div id="hud" class="hud hidden">
-<div class="hud-top">
-<div class="hud-op">
-<span class="op-label">OPERATION</span>
-<span class="op-name" id="hudOpName">DESERT WATCH</span>
-</div>
-<div class="hud-status">
-<span id="hudTime">06:00</span>
-<span class="sep">|</span>
-<span id="hudGrid">GRID 22-R</span>
-<span class="sep">|</span>
-<span id="hudRank">CPL</span>
-</div>
-</div>
+        <div class="hud-left">
+            <div class="hud-bar">
+                <span class="bar-label">VITALS</span>
+                <div class="bar-track"><div class="bar-fill health-fill" id="healthFill"></div></div>
+            </div>
+            <div class="hud-bar">
+                <span class="bar-label">STAMINA</span>
+                <div class="bar-track"><div class="bar-fill stamina-fill" id="staminaFill"></div></div>
+            </div>
+        </div>
 
-<div class="hud-left">
-<div class="hud-bar">
-<span class="bar-label">VITALS</span>
-<div class="bar-track"><div class="bar-fill health-fill" id="healthFill"></div></div>
-</div>
-<div class="hud-bar">
-<span class="bar-label">STAMINA</span>
-<div class="bar-track"><div class="bar-fill stamina-fill" id="staminaFill"></div></div>
-</div>
-</div>
+        <div class="hud-right">
+            <div class="hud-score">
+                <span class="score-label">INTEL</span>
+                <span class="score-value" id="hudScore">0</span>
+            </div>
+            <div class="hud-combo" id="hudCombo">×1</div>
+        </div>
 
-<div class="hud-right">
-<div class="compass">
-<div class="compass-needle" id="compassNeedle"></div>
-<span class="compass-n" id="compassDir">N</span>
-</div>
-<div class="hud-score">
-<span class="score-label">INTEL</span>
-<span class="score-value" id="hudScore">0</span>
-</div>
-</div>
+        <div class="hud-mission">
+            <span class="mission-tag">◤ MISSION ◢</span>
+            <span class="mission-text" id="missionText">—</span>
+        </div>
 
-<div class="hud-mission" id="hudMission">
-<span class="mission-tag">◤ MISSION ◢</span>
-<span class="mission-text" id="missionText">—</span>
-</div>
+        <div class="hud-bottom">
+            <div class="objective-progress" id="objectiveProgress"></div>
+        </div>
+    </div>
 
-<div class="hud-bottom">
-<div class="objective-progress" id="objectiveProgress"></div>
-</div>
-</div>
+    <!-- Pause Button -->
+    <button id="btn-pause" class="btn-pause hidden" aria-label="Pause">❚❚</button>
 
-<!-- Pause Button -->
-<button id="btn-pause" class="btn-pause hidden" aria-label="Pause">❚❚</button>
+    <!-- Mobile Controls -->
+    <div id="mobile-controls" class="mobile-controls hidden">
+        <div class="mc-left">
+            <button class="mc-btn mc-dpad" id="btn-left">◀</button>
+            <button class="mc-btn mc-dpad" id="btn-right">▶</button>
+        </div>
+        <div class="mc-right">
+            <button class="mc-btn mc-action mc-crouch" id="btn-crouch">▼</button>
+            <button class="mc-btn mc-action mc-jump" id="btn-jump">▲</button>
+            <button class="mc-btn mc-action mc-interact" id="btn-interact">✦</button>
+        </div>
+    </div>
 
-<!-- Mobile Controls -->
-<div id="mobile-controls" class="mobile-controls hidden">
-<div class="mc-left">
-<button class="mc-btn mc-dpad" id="btn-left">◀</button>
-<button class="mc-btn mc-dpad" id="btn-right">▶</button>
-</div>
-<div class="mc-right">
-<button class="mc-btn mc-action mc-crouch" id="btn-crouch">▼</button>
-<button class="mc-btn mc-action mc-jump" id="btn-jump">▲</button>
-<button class="mc-btn mc-action mc-interact" id="btn-interact">✦</button>
-</div>
-</div>
+    <!-- Radio -->
+    <div id="radioChatter" class="radio-chatter hidden">
+        <span class="radio-icon">📻</span>
+        <span class="radio-text" id="radioText"></span>
+    </div>
 
-<!-- Radio Chatter -->
-<div id="radioChatter" class="radio-chatter hidden">
-<span class="radio-icon">📻</span>
-<span class="radio-text" id="radioText"></span>
-</div>
+    <!-- Briefing -->
+    <div id="briefing" class="briefing hidden">
+        <div class="briefing-panel">
+            <div class="briefing-header">
+                <span class="briefing-classified">CLASSIFIED</span>
+                <span class="briefing-num" id="briefingNum">MISSION 01</span>
+            </div>
+            <h2 class="briefing-title" id="briefingTitle">بداية الدورية</h2>
+            <div class="briefing-line"></div>
+            <div class="briefing-section">
+                <div class="briefing-row"><span class="lbl">الموقع:</span><span id="briefingLoc">جنوب البحر الأحمر</span></div>
+                <div class="briefing-row"><span class="lbl">التوقيت:</span><span id="briefingTime">05:45</span></div>
+                <div class="briefing-row"><span class="lbl">المهمة:</span><span id="briefingObjective">—</span></div>
+                <div class="briefing-row"><span class="lbl">التصنيف:</span><span class="briefing-level">ROUTINE PATROL</span></div>
+            </div>
+            <div class="briefing-line"></div>
+            <div class="briefing-hint" id="briefingHint">تنقّل بحذر.</div>
+            <button class="btn-deploy" id="btnDeploy">▶ DEPLOY</button>
+        </div>
+    </div>
 
-<!-- Mission Briefing Overlay -->
-<div id="briefing" class="briefing hidden">
-<div class="briefing-panel">
-<div class="briefing-header">
-<span class="briefing-classified">CLASSIFIED</span>
-<span class="briefing-num" id="briefingNum">MISSION 01</span>
-</div>
-<h2 class="briefing-title" id="briefingTitle">بداية الدورية</h2>
-<div class="briefing-line"></div>
-<div class="briefing-section">
-<div class="briefing-row"><span class="lbl">الموقع:</span><span id="briefingLoc">جنوب البحر الأحمر</span></div>
-<div class="briefing-row"><span class="lbl">التوقيت:</span><span id="briefingTime">05:45 فجراً</span></div>
-<div class="briefing-row"><span class="lbl">المهمة:</span><span id="briefingObjective">—</span></div>
-<div class="briefing-row"><span class="lbl">التصنيف:</span><span class="briefing-level">ROUTINE PATROL</span></div>
-</div>
-<div class="briefing-line"></div>
-<div class="briefing-hint" id="briefingHint">تنقّل بحذر. الجبال لا ترحم.</div>
-<button class="btn-deploy" id="btnDeploy">▶ DEPLOY</button>
-</div>
-</div>
+    <!-- Mission Complete -->
+    <div id="missionComplete" class="overlay hidden">
+        <div class="overlay-panel">
+            <div class="overlay-stamp success">MISSION COMPLETE</div>
+            <div class="overlay-msg">أحسنت يا سيد!</div>
+            <div class="stats-grid">
+                <div class="stat"><span class="stat-lbl">SCORE</span><span class="stat-val" id="statScore">0</span></div>
+                <div class="stat"><span class="stat-lbl">TIME</span><span class="stat-val" id="statTime">0.0s</span></div>
+                <div class="stat"><span class="stat-lbl">INTEL</span><span class="stat-val" id="statItems">0</span></div>
+                <div class="stat"><span class="stat-lbl">VITALS</span><span class="stat-val" id="statHealth">0</span></div>
+            </div>
+            <div class="rank-award" id="rankAward">★ ★ ★</div>
+            <button class="btn-next" id="btnNext">NEXT MISSION ▶</button>
+        </div>
+    </div>
 
-<!-- Mission Complete Overlay -->
-<div id="missionComplete" class="overlay hidden">
-<div class="overlay-panel">
-<div class="overlay-stamp success">MISSION COMPLETE</div>
-<div class="overlay-msg">أحسنت يا سيد!</div>
-<div class="stats-grid">
-<div class="stat"><span class="stat-lbl">SCORE</span><span class="stat-val" id="statScore">0</span></div>
-<div class="stat"><span class="stat-lbl">TIME</span><span class="stat-val" id="statTime">0.0s</span></div>
-<div class="stat"><span class="stat-lbl">INTEL</span><span class="stat-val" id="statItems">0</span></div>
-<div class="stat"><span class="stat-lbl">VITALS</span><span class="stat-val" id="statHealth">0</span></div>
-</div>
-<div class="rank-award" id="rankAward">★ ★ ★</div>
-<button class="btn-next" id="btnNext">NEXT MISSION ▶</button>
-</div>
-</div>
+    <!-- Game Over -->
+    <div id="gameOver" class="overlay hidden">
+        <div class="overlay-panel danger">
+            <div class="overlay-stamp fail">MISSION FAILED</div>
+            <div class="overlay-msg">انتهت المهمة...</div>
+            <div class="stats-grid">
+                <div class="stat"><span class="stat-lbl">SCORE</span><span class="stat-val" id="overScore">0</span></div>
+                <div class="stat"><span class="stat-lbl">LEVEL</span><span class="stat-val" id="overLevel">1</span></div>
+            </div>
+            <button class="btn-retry" id="btnRetry">↻ TRY AGAIN</button>
+            <button class="btn-menu" id="btnMenuFromOver">MENU</button>
+        </div>
+    </div>
 
-<!-- Game Over Overlay -->
-<div id="gameOver" class="overlay hidden">
-<div class="overlay-panel danger">
-<div class="overlay-stamp fail">MISSION FAILED</div>
-<div class="overlay-msg">انتهت المهمة...</div>
-<div class="stats-grid">
-<div class="stat"><span class="stat-lbl">SCORE</span><span class="stat-val" id="overScore">0</span></div>
-<div class="stat"><span class="stat-lbl">LEVEL</span><span class="stat-val" id="overLevel">1</span></div>
-</div>
-<button class="btn-retry" id="btnRetry">↻ TRY AGAIN</button>
-<button class="btn-menu" id="btnMenuFromOver">MENU</button>
-</div>
-</div>
+    <!-- Pause -->
+    <div id="pauseOverlay" class="overlay hidden">
+        <div class="overlay-panel">
+            <div class="overlay-stamp neutral">PAUSED</div>
+            <div class="overlay-msg">توقف مؤقت</div>
+            <div class="pause-buttons">
+                <button class="btn-primary" id="btnResume">▶ RESUME</button>
+                <button class="btn-secondary" id="btnRestart">↻ RESTART</button>
+                <button class="btn-secondary" id="btnQuit">⏏ MENU</button>
+            </div>
+        </div>
+    </div>
 
-<!-- Pause Overlay -->
-<div id="pauseOverlay" class="overlay hidden">
-<div class="overlay-panel">
-<div class="overlay-stamp neutral">PAUSED</div>
-<div class="overlay-msg">توقف مؤقت</div>
-<div class="pause-buttons">
-<button class="btn-primary" id="btnResume">▶ RESUME</button>
-<button class="btn-secondary" id="btnRestart">↻ RESTART</button>
-<button class="btn-secondary" id="btnQuit">⏏ MENU</button>
-</div>
-</div>
-</div>
+    <!-- Settings -->
+    <div id="settingsPanel" class="overlay hidden">
+        <div class="overlay-panel">
+            <div class="overlay-stamp neutral">SETTINGS</div>
+            <div class="settings-rows">
+                <div class="settings-row">
+                    <label>🔊 الصوت الرئيسي</label>
+                    <input type="range" id="volMaster" min="0" max="1" step="0.05" value="0.7">
+                    <span id="volMasterVal">70%</span>
+                </div>
+                <div class="settings-row">
+                    <label>🎵 الموسيقى</label>
+                    <input type="range" id="volMusic" min="0" max="1" step="0.05" value="0.4">
+                    <span id="volMusicVal">40%</span>
+                </div>
+                <div class="settings-row">
+                    <label>💥 المؤثرات</label>
+                    <input type="range" id="volSfx" min="0" max="1" step="0.05" value="0.8">
+                    <span id="volSfxVal">80%</span>
+                </div>
+            </div>
+            <button class="btn-primary" id="btnCloseSettings">حفظ وإغلاق</button>
+        </div>
+    </div>
 
-<!-- Settings Panel -->
-<div id="settingsPanel" class="overlay hidden">
-<div class="overlay-panel">
-<div class="overlay-stamp neutral">SETTINGS</div>
-<div class="settings-rows">
-<div class="settings-row">
-<label>🔊 الصوت الرئيسي</label>
-<input type="range" id="volMaster" min="0" max="1" step="0.05" value="0.7">
-<span id="volMasterVal">70%</span>
-</div>
-<div class="settings-row">
-<label>🎵 الموسيقى</label>
-<input type="range" id="volMusic" min="0" max="1" step="0.05" value="0.5">
-<span id="volMusicVal">50%</span>
-</div>
-<div class="settings-row">
-<label>💥 المؤثرات</label>
-<input type="range" id="volSfx" min="0" max="1" step="0.05" value="0.8">
-<span id="volSfxVal">80%</span>
-</div>
-<div class="settings-row">
-<label>🖥 جودة الرسوم</label>
-<select id="qualitySelect">
-<option value="high">عالية</option>
-<option value="medium">متوسطة</option>
-<option value="low">منخفضة</option>
-</select>
-</div>
-<div class="settings-row">
-<label>🕹 نوع التحكم</label>
-<select id="controlSelect">
-<option value="auto">تلقائي</option>
-<option value="touch">لمس</option>
-<option value="keyboard">لوحة مفاتيح</option>
-</select>
-</div>
-</div>
-<button class="btn-primary" id="btnCloseSettings">حفظ وإغلاق</button>
-</div>
-</div>
+    <!-- Main Menu -->
+    <div id="mainMenu" class="main-menu hidden">
+        <div class="menu-bg"></div>
+        <div class="menu-vignette"></div>
+        <div class="menu-sayed" id="menuSayed"></div>
 
-<!-- Main Menu -->
-<div id="mainMenu" class="main-menu hidden">
-<div class="menu-bg"></div>
-<div class="menu-vignette"></div>
-<div class="menu-sayed" id="menuSayed"></div>
+        <div class="menu-content">
+            <div class="menu-badge">MILITARY OPERATIONS</div>
+            <h1 class="menu-title">SAYED</h1>
+            <div class="menu-sub">حـارس الحـدود · BORDER GUARD</div>
+            <div class="menu-line"></div>
 
-<div class="menu-content">
-<div class="menu-badge">MILITARY OPERATIONS</div>
-<h1 class="menu-title">SAYED</h1>
-<div class="menu-sub">حـارس الحـدود · BORDER GUARD</div>
-<div class="menu-line"></div>
+            <div class="menu-buttons">
+                <button class="menu-btn primary" id="menuStart"><span class="btn-icon">▶</span><span>DEPLOY — بدء المهمة</span></button>
+                <button class="menu-btn" id="menuContinue"><span class="btn-icon">⏵</span><span>CONTINUE — متابعة</span></button>
+                <button class="menu-btn" id="menuMissions"><span class="btn-icon">🗺</span><span>OPERATIONS — العمليات</span></button>
+                <button class="menu-btn" id="menuSettings"><span class="btn-icon">⚙</span><span>SETTINGS — الإعدادات</span></button>
+                <button class="menu-btn" id="menuManual"><span class="btn-icon">📖</span><span>FIELD MANUAL — الدليل</span></button>
+            </div>
 
-<div class="menu-buttons">
-<button class="menu-btn primary" id="menuStart">
-<span class="btn-icon">▶</span>
-<span>DEPLOY — بدء المهمة</span>
-</button>
-<button class="menu-btn" id="menuContinue">
-<span class="btn-icon">⏵</span>
-<span>CONTINUE — متابعة</span>
-</button>
-<button class="menu-btn" id="menuMissions">
-<span class="btn-icon">🗺</span>
-<span>OPERATIONS — العمليات</span>
-</button>
-<button class="menu-btn" id="menuSettings">
-<span class="btn-icon">⚙</span>
-<span>SETTINGS — الإعدادات</span>
-</button>
-<button class="menu-btn" id="menuManual">
-<span class="btn-icon">📖</span>
-<span>FIELD MANUAL — الدليل</span>
-</button>
-</div>
+            <div class="menu-footer">
+                <span id="menuHighScore">HIGH SCORE: 0</span>
+                <span class="menu-ver">v2.0 · BUILD 2024</span>
+            </div>
+        </div>
+    </div>
 
-<div class="menu-footer">
-<span id="menuHighScore">HIGH SCORE: 0</span>
-<span class="menu-ver">v1.0 · BUILD 2024</span>
-</div>
-</div>
-</div>
+    <!-- Missions Grid -->
+    <div id="missionsPanel" class="overlay hidden">
+        <div class="overlay-panel wide">
+            <div class="overlay-stamp neutral">OPERATIONS</div>
+            <div class="mission-grid" id="missionGrid"></div>
+            <button class="btn-secondary" id="btnCloseMissions">← BACK</button>
+        </div>
+    </div>
 
-<!-- Mission Select -->
-<div id="missionsPanel" class="overlay hidden">
-<div class="overlay-panel wide">
-<div class="overlay-stamp neutral">OPERATIONS</div>
-<div class="mission-grid" id="missionGrid"></div>
-<button class="btn-secondary" id="btnCloseMissions">← BACK</button>
-</div>
-</div>
-
-<!-- Field Manual -->
-<div id="manualPanel" class="overlay hidden">
-<div class="overlay-panel wide">
-<div class="overlay-stamp neutral">FIELD MANUAL</div>
-<div class="manual-content">
-<div class="manual-section">
-<h3>🎮 التحكم — CONTROLS</h3>
-<div class="manual-keys">
-<div><span class="kbd">A / ←</span> تحرك يسار</div>
-<div><span class="kbd">D / →</span> تحرك يمين</div>
-<div><span class="kbd">Space</span> قفز</div>
-<div><span class="kbd">S / ↓</span> انحناء</div>
-<div><span class="kbd">E</span> تفاعل</div>
-<div><span class="kbd">ESC</span> إيقاف مؤقت</div>
-</div>
-</div>
-<div class="manual-section">
-<h3>🎯 الهدف — OBJECTIVES</h3>
-<p>تقدم عبر المناطق الجبلية والصحراوية، اجمع المؤن والذخيرة، وتجنب العوائق. راقب مؤشر الطاقة أثناء الجري والتسلق.</p>
-</div>
-<div class="manual-section">
-<h3>⚠ التحذيرات — WARNINGS</h3>
-<p>العواصف الرملية تُنقص الطاقة. السقوط في الحفر يُصيبك. احتفظ بالماء والطعام لاستعادة اللياقة.</p>
-</div>
-</div>
-<button class="btn-secondary" id="btnCloseManual">← BACK</button>
-</div>
-</div>
-
+    <!-- Manual -->
+    <div id="manualPanel" class="overlay hidden">
+        <div class="overlay-panel wide">
+            <div class="overlay-stamp neutral">FIELD MANUAL</div>
+            <div class="manual-content">
+                <div class="manual-section">
+                    <h3>🎮 التحكم</h3>
+                    <div class="manual-keys">
+                        <div><span class="kbd">A / ←</span> يسار</div>
+                        <div><span class="kbd">D / →</span> يمين</div>
+                        <div><span class="kbd">Space</span> قفز (×2)</div>
+                        <div><span class="kbd">S / ↓</span> انحناء</div>
+                        <div><span class="kbd">E</span> تفاعل</div>
+                        <div><span class="kbd">ESC</span> إيقاف</div>
+                    </div>
+                </div>
+                <div class="manual-section">
+                    <h3>🎯 الهدف</h3>
+                    <p>اعبر المناطق الصحراوية والجبلية، اجمع المؤن والذخيرة، وتجنب العوائق والصخور المتساقطة.</p>
+                </div>
+                <div class="manual-section">
+                    <h3>⚡ المكافآت</h3>
+                    <p>جمع متتالي = Combo ×5. كل 500 نقطة = درع مؤقت. الماء يستعيد الطاقة.</p>
+                </div>
+                <div class="manual-section">
+                    <h3>⚠ التحذيرات</h3>
+                    <p>العواصف الرملية تُنقص الطاقة. الصخور المتساقطة تسبب إصابات. راقب مؤشر VITALS.</p>
+                </div>
+            </div>
+            <button class="btn-secondary" id="btnCloseManual">← BACK</button>
+        </div>
+    </div>
 </div>
 
 <script src="script.js"></script>
 </body>
-</html>
+                                                                                                                             </html>
