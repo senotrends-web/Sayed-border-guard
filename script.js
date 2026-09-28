@@ -1,5 +1,5 @@
 /* ============================================================
-   SAYED — BORDER GUARD | v3.0
+   SAYED — BORDER GUARD | v4.0
    Professional 2D Side-Scrolling Platform Adventure
    ============================================================ */
 
@@ -12,16 +12,17 @@ const CFG = {
     W: 960, H: 540,
     GRAVITY: 1500,
     MOVE_ACCEL: 2600,
-    MOVE_MAX: 245,
+    MOVE_MAX: 250,
     MOVE_FRICTION: 0.80,
-    JUMP_VELOCITY: -540,
-    DOUBLE_JUMP_VELOCITY: -450,
+    JUMP_VELOCITY: -560,
+    DOUBLE_JUMP_VELOCITY: -470,
     MAX_FALL: 720,
     CROUCH_SPEED: 0.42,
     STAMINA_DRAIN: 18,
     STAMINA_REGEN: 24,
     INVINCIBLE_TIME: 1.6,
-    KILL_Y: 900
+    KILL_Y: 900,
+    CHAR_VISUAL_SCALE: 1.55   // medium size
 };
 
 const STATES = {
@@ -29,9 +30,6 @@ const STATES = {
     PLAYING: 'playing', PAUSED: 'paused', COMPLETE: 'complete', OVER: 'over'
 };
 
-/* ============================================================
-   2. SPRITE REGISTRY
-   ============================================================ */
 const SPRITE_REGISTRY = {
     idle:   { url: 'https://i.ibb.co/LhsGjz0c/sayed-idle.png',   cols: 4, rows: 1, fps: 6,  loop: true  },
     run:    { url: 'https://i.ibb.co/N6ytgTdD/Sayed-Run.png',    cols: 4, rows: 2, fps: 12, loop: true  },
@@ -43,17 +41,8 @@ const SPRITE_REGISTRY = {
     soul:   { url: 'https://i.ibb.co/n8sjtTq9/Soul-Heart.png',   cols: 1, rows: 1, fps: 1,  loop: true  }
 };
 
-/* Backgrounds (parallax layers) */
-const BG_LAYERS = {
-    sky:      'https://i.ibb.co/fbDMqJ9/background.png',
-    far:      'https://i.ibb.co/ZpYXsQgx/background3.png',
-    mid:      'https://i.ibb.co/chBBdqvT/background2.png',
-    near:     'https://i.ibb.co/NnVkSfkq/1786196340828.png',
-    menu:     'https://i.ibb.co/RpmxMHwm/Assets-3.png'
-};
-
 /* ============================================================
-   3. SPRITE CLASS
+   2. SPRITE CLASS — high quality, no CORS issues
    ============================================================ */
 class Sprite {
     constructor(cfg) {
@@ -81,7 +70,7 @@ class Sprite {
                 }
                 resolve(this.loaded);
             };
-            const tm = setTimeout(() => finish(false), 6000);
+            const tm = setTimeout(() => finish(false), 8000);
             this.img.onload = () => { clearTimeout(tm); finish(true); };
             this.img.onerror = () => { clearTimeout(tm); finish(false); };
             try { this.img.src = this.cfg.url; }
@@ -97,59 +86,34 @@ class Sprite {
 }
 
 /* ============================================================
-   4. ASSETS
+   3. ASSETS
    ============================================================ */
 const Assets = {
     sprites: {},
-    backgrounds: {},
     ready: false,
-
     async loadAll(onProgress) {
         const keys = Object.keys(SPRITE_REGISTRY);
         let loaded = 0;
-        const total = keys.length + Object.keys(BG_LAYERS).length;
-
-        for (const key of keys) {
-            this.sprites[key] = new Sprite(SPRITE_REGISTRY[key]);
-        }
-        for (const key in BG_LAYERS) {
-            const img = new Image();
-            this.backgrounds[key] = { img, loaded: false };
-        }
-
-        const spriteTasks = keys.map(key =>
+        const total = keys.length;
+        for (const key of keys) this.sprites[key] = new Sprite(SPRITE_REGISTRY[key]);
+        await Promise.all(keys.map(key =>
             this.sprites[key].load().then(() => {
                 loaded++;
                 if (onProgress) onProgress(loaded / total);
             })
-        );
-
-        const bgTasks = Object.keys(BG_LAYERS).map(key => {
-            return new Promise((resolve) => {
-                const bg = this.backgrounds[key];
-                const tm = setTimeout(() => { bg.loaded = false; loaded++; resolve(); }, 6000);
-                bg.img.onload = () => { clearTimeout(tm); bg.loaded = true; loaded++; if (onProgress) onProgress(loaded/total); resolve(); };
-                bg.img.onerror = () => { clearTimeout(tm); bg.loaded = false; loaded++; if (onProgress) onProgress(loaded/total); resolve(); };
-                try { bg.img.src = BG_LAYERS[key]; } catch(e) { clearTimeout(tm); loaded++; resolve(); }
-            });
-        });
-
-        await Promise.all([...spriteTasks, ...bgTasks]);
+        ));
         this.ready = true;
     },
-
-    get(name) { return this.sprites[name] || null; },
-    getBg(name) { return this.backgrounds[name] || null; }
+    get(name) { return this.sprites[name] || null; }
 };
 
 /* ============================================================
-   5. AUDIO
+   4. AUDIO
    ============================================================ */
 const AudioMgr = {
     ctx: null, masterGain: null, musicGain: null, sfxGain: null,
     volumes: { master: 0.7, music: 0.4, sfx: 0.8 },
     musicNodes: [], started: false,
-
     init() {
         if (this.ctx) return;
         try {
@@ -189,10 +153,10 @@ const AudioMgr = {
     },
     noise(dur, gain = 0.2, filterFreq = 800) {
         if (!this.ctx) return;
-        const bufferSize = Math.floor(this.ctx.sampleRate * dur);
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const bs = Math.floor(this.ctx.sampleRate * dur);
+        const buffer = this.ctx.createBuffer(1, bs, this.ctx.sampleRate);
         const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        for (let i = 0; i < bs; i++) data[i] = Math.random() * 2 - 1;
         const src = this.ctx.createBufferSource();
         src.buffer = buffer;
         const filter = this.ctx.createBiquadFilter();
@@ -227,7 +191,7 @@ const AudioMgr = {
             const osc = this.ctx.createOscillator();
             osc.type = 'sine'; osc.frequency.value = f;
             const g = this.ctx.createGain();
-            g.gain.value = 0.12 / (i + 1);
+            g.gain.value = 0.10 / (i + 1);
             const lfo = this.ctx.createOscillator();
             lfo.frequency.value = 0.05 + i * 0.02;
             const lfoGain = this.ctx.createGain();
@@ -245,7 +209,7 @@ const AudioMgr = {
 };
 
 /* ============================================================
-   6. INPUT
+   5. INPUT
    ============================================================ */
 const Input = {
     keys: { left: false, right: false, jump: false, crouch: false, interact: false },
@@ -294,7 +258,7 @@ const Input = {
 };
 
 /* ============================================================
-   7. CAMERA
+   6. CAMERA
    ============================================================ */
 class Camera {
     constructor() {
@@ -323,7 +287,7 @@ class Camera {
 }
 
 /* ============================================================
-   8. PARTICLES
+   7. PARTICLES
    ============================================================ */
 class Particle {
     constructor(x, y, vx, vy, life, color, size, gravity = 400) {
@@ -357,11 +321,8 @@ const Particles = {
         for (let i = 0; i < count; i++) {
             const ang = Math.random() * Math.PI * 2;
             const sp = speed * (0.4 + Math.random() * 0.6);
-            this.list.push(new Particle(
-                x, y, Math.cos(ang) * sp, Math.sin(ang) * sp - 40,
-                life * (0.6 + Math.random() * 0.5),
-                color, size * (0.7 + Math.random() * 0.6), gravity
-            ));
+            this.list.push(new Particle(x, y, Math.cos(ang) * sp, Math.sin(ang) * sp - 40,
+                life * (0.6 + Math.random() * 0.5), color, size * (0.7 + Math.random() * 0.6), gravity));
         }
     },
     update(dt) {
@@ -376,13 +337,13 @@ const Particles = {
 };
 
 /* ============================================================
-   9. PLAYER
+   8. PLAYER — High quality, medium size, smooth
    ============================================================ */
 class Player {
     constructor(x, y) {
         this.x = x; this.y = y;
         this.vx = 0; this.vy = 0;
-        this.width = 38; this.height = 54;
+        this.width = 42; this.height = 60;
         this.onGround = false; this.wasOnGround = false;
         this.facingRight = true;
         this.health = 5; this.maxHealth = 5;
@@ -394,10 +355,11 @@ class Player {
         this.stepTimer = 0; this.jumpCount = 0; this.maxJumps = 2;
         this.alive = true; this.finishLock = false;
         this.sprintTime = 0; this.trailTimer = 0;
+        this.landDust = 0;
     }
     get bounds() {
         const h = this.isCrouching ? this.height * 0.62 : this.height;
-        return { x: this.x + 5, y: this.y + (this.height - h), w: this.width - 10, h: h };
+        return { x: this.x + 6, y: this.y + (this.height - h), w: this.width - 12, h };
     }
     setAnim(name) {
         if (this.currentAnim !== name) {
@@ -454,11 +416,10 @@ class Player {
         this.onGround = false;
         const b2 = this.bounds;
         for (const p of platforms) {
-            if (b2.x + b2.w > p.x && b2.x < p.x + p.w &&
-                b2.y + b2.h > p.y && b2.y < p.y + p.h) {
-                const overlapX = Math.min(b2.x + b2.w - p.x, p.x + p.w - b2.x);
-                const overlapY = Math.min(b2.y + b2.h - p.y, p.y + p.h - b2.y);
-                if (overlapY < overlapX) {
+            if (b2.x + b2.w > p.x && b2.x < p.x + p.w && b2.y + b2.h > p.y && b2.y < p.y + p.h) {
+                const oX = Math.min(b2.x + b2.w - p.x, p.x + p.w - b2.x);
+                const oY = Math.min(b2.y + b2.h - p.y, p.y + p.h - b2.y);
+                if (oY < oX) {
                     if (this.vy > 0 && b2.y + b2.h - this.vy * dt <= p.y + 8) {
                         this.y = p.y - this.height;
                         if (!this.wasOnGround && this.vy > 200) {
@@ -550,31 +511,34 @@ class Player {
         const sx = this.x - cam.x + cam.offsetX;
         const sy = this.y - cam.y + cam.offsetY;
 
-        if (this.invincible > 0 && Math.floor(this.invincible * 16) % 2 === 0) {
-            ctx.globalAlpha = 0.4;
-        }
+        if (this.invincible > 0 && Math.floor(this.invincible * 16) % 2 === 0) ctx.globalAlpha = 0.5;
 
         // Shadow
-        ctx.fillStyle = 'rgba(0,0,0,0.28)';
+        ctx.fillStyle = 'rgba(0,0,0,0.32)';
         ctx.beginPath();
-        ctx.ellipse(sx + this.width/2, sy + this.height + 3, this.width * 0.55, 5, 0, 0, Math.PI * 2);
+        ctx.ellipse(sx + this.width/2, sy + this.height + 3, this.width * 0.6, 6, 0, 0, Math.PI * 2);
         ctx.fill();
 
         // Shield aura
         if (this.invincible > 0.3) {
-            ctx.strokeStyle = `rgba(80,180,255,${0.4 + Math.sin(performance.now() * 0.02) * 0.3})`;
+            ctx.strokeStyle = `rgba(80,180,255,${0.5 + Math.sin(performance.now() * 0.02) * 0.3})`;
             ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.ellipse(sx + this.width/2, sy + this.height/2, this.width * 1.1, this.height * 0.9, 0, 0, Math.PI * 2);
+            ctx.ellipse(sx + this.width/2, sy + this.height/2, this.width * 1.15, this.height * 0.95, 0, 0, Math.PI * 2);
             ctx.stroke();
         }
 
         if (spr && spr.loaded) {
             const rect = spr.getFrame(this.animFrame);
-            const destH = this.height * 1.30;
+            // Medium size character
+            const destH = this.height * CFG.CHAR_VISUAL_SCALE;
             const destW = destH * (rect.sw / rect.sh);
             const drawX = sx + this.width/2 - destW/2;
             const drawY = sy + this.height - destH;
+
+            // Ensure high quality image smoothing
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
 
             ctx.save();
             if (!this.facingRight) {
@@ -596,31 +560,31 @@ class Player {
         const h = this.isCrouching ? this.height * 0.62 : this.height;
         const yOff = this.isCrouching ? this.height * 0.38 : 0;
         ctx.fillStyle = '#c8b590';
-        ctx.fillRect(sx + 5, sy + yOff + 14, this.width - 10, h - 20);
+        ctx.fillRect(sx + 6, sy + yOff + 16, this.width - 12, h - 22);
         ctx.fillStyle = '#5a6a4a';
-        ctx.fillRect(sx + 8, sy + yOff + 18, this.width - 16, h - 26);
+        ctx.fillRect(sx + 9, sy + yOff + 20, this.width - 18, h - 28);
         ctx.fillStyle = '#d4a373';
         ctx.beginPath();
-        ctx.arc(sx + this.width/2, sy + yOff + 10, 11, 0, Math.PI * 2);
+        ctx.arc(sx + this.width/2, sy + yOff + 11, 12, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#8a7a5a';
         ctx.beginPath();
-        ctx.arc(sx + this.width/2, sy + yOff + 8, 12, Math.PI, 0);
+        ctx.arc(sx + this.width/2, sy + yOff + 9, 13, Math.PI, 0);
         ctx.fill();
-        ctx.fillRect(sx + this.width/2 - 12, sy + yOff + 6, 24, 4);
+        ctx.fillRect(sx + this.width/2 - 13, sy + yOff + 7, 26, 4);
         ctx.fillStyle = '#2a4a6a';
-        ctx.fillRect(sx - 3, sy + yOff + 18, 8, 22);
+        ctx.fillRect(sx - 3, sy + yOff + 20, 9, 24);
     }
 }
 
 /* ============================================================
-   10. COLLECTIBLES (with image assets for coin & soul)
+   9. COLLECTIBLES
    ============================================================ */
 class Collectible {
     constructor(x, y, type) {
         this.x = x; this.y = y;
         this.type = type;
-        this.width = 24; this.height = 24;
+        this.width = 26; this.height = 26;
         this.collected = false;
         this.bob = Math.random() * Math.PI * 2;
         this.rot = 0;
@@ -629,57 +593,37 @@ class Collectible {
     draw(ctx, cam) {
         if (this.collected) return;
         const sx = this.x - cam.x + cam.offsetX;
-        const sy = this.y - cam.y + cam.offsetY + Math.sin(this.bob) * 4;
-
-        // Try using image for coin and soul
-        const imgSprite = (this.type === 'coin') ? Assets.get('coin') :
-                          (this.type === 'soul') ? Assets.get('soul') : null;
-
-        if (imgSprite && imgSprite.loaded) {
+        const sy = this.y - cam.y + cam.offsetY + Math.sin(this.bob) * 5;
+        const imgSpr = (this.type === 'coin') ? Assets.get('coin') :
+                       (this.type === 'soul') ? Assets.get('soul') : null;
+        if (imgSpr && imgSpr.loaded) {
             ctx.save();
             ctx.shadowColor = this.type === 'soul' ? '#ff66aa' : '#ffdd00';
-            ctx.shadowBlur = 16;
-            // Rotate coin
-            ctx.translate(sx + 12, sy + 12);
+            ctx.shadowBlur = 18;
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.translate(sx + 13, sy + 13);
             if (this.type === 'coin') ctx.rotate(Math.sin(this.rot) * 0.15);
-            ctx.drawImage(imgSprite.img, -16, -16, 32, 32);
+            ctx.drawImage(imgSpr.img, -18, -18, 36, 36);
             ctx.restore();
             return;
         }
-
-        // Fallback shapes
-        const colors = {
-            coin:     ['#ffdd00', '#8a6a00'],
-            soul:     ['#ff88cc', '#8a2a5a'],
-            water:    ['#44aaff', '#0a5a8a'],
-            food:     ['#ff8844', '#8a3a0a'],
-            supplies: ['#88cc44', '#3a6a1a'],
-            star:     ['#ffdd00', '#8a6a00']
-        };
-        const [c1, c2] = colors[this.type] || ['#fff', '#888'];
-        const icons = { coin: '🪙', soul: '💖', water: '💧', food: '🥫', supplies: '📦', star: '★' };
-
+        // fallback
+        const colors = { coin: '#ffdd00', soul: '#ff88cc' };
+        const color = colors[this.type] || '#fff';
         ctx.save();
-        ctx.shadowColor = c1;
-        ctx.shadowBlur = 14;
-        ctx.fillStyle = c1;
+        ctx.shadowColor = color; ctx.shadowBlur = 14;
+        ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.arc(sx + 12, sy + 12, 12, 0, Math.PI * 2);
+        ctx.arc(sx + 13, sy + 13, 13, 0, Math.PI * 2);
         ctx.fill();
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = c1; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(sx + 12, sy + 12, 12, 0, Math.PI * 2); ctx.stroke();
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 13px Tahoma';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(icons[this.type] || '?', sx + 12, sy + 13);
         ctx.restore();
     }
     getBounds() { return { x: this.x, y: this.y, w: this.width, h: this.height }; }
 }
 
 /* ============================================================
-   11. CHECKPOINT
+   10. CHECKPOINT
    ============================================================ */
 class Checkpoint {
     constructor(x, y) {
@@ -714,7 +658,7 @@ class Checkpoint {
 }
 
 /* ============================================================
-   12. OBSTACLE
+   11. OBSTACLE
    ============================================================ */
 class Obstacle {
     constructor(x, y, w, h, type) {
@@ -746,13 +690,18 @@ class Obstacle {
             ctx.fillRect(sx + this.width/2 - 5, sy, 10, this.height);
             ctx.fillRect(sx, sy + this.height * 0.35, this.width, 7);
             ctx.fillRect(sx, sy + this.height * 0.15, 6, 15);
+        } else if (this.type === 'debris') {
+            ctx.fillStyle = '#5a4a3a';
+            for (let i = 0; i < 4; i++) {
+                ctx.fillRect(sx + (i * 7) % this.width, sy + i * 4, 6, 4);
+            }
         }
     }
     getBounds() { return { x: this.x + 4, y: this.y + 4, w: this.width - 8, h: this.height - 8 }; }
 }
 
 /* ============================================================
-   13. FALLING ROCK
+   12. FALLING ROCK
    ============================================================ */
 class FallingRock {
     constructor(x, y) {
@@ -807,255 +756,192 @@ class FallingRock {
 }
 
 /* ============================================================
-   14. LEVELS DATA
+   13. LEVELS DATA — Long, immersive, mountain + desert
    ============================================================ */
 const LEVELS = [
     {
         id: 0, name: 'بداية الدورية', op: 'DESERT WATCH', grid: 'GRID 22-R',
         time: '05:45', loc: 'جنوب البحر الأحمر',
         objective: 'الوصول إلى نقطة المراقبة',
-        hint: 'من جبال مصر إلى السودان... الطريق طويل.',
-        worldWidth: 2600, dark: false, sandstorm: false,
-        platforms: [
-            { x: 0, y: 480, w: 400, h: 60 }, { x: 470, y: 440, w: 220, h: 100 },
-            { x: 740, y: 400, w: 180, h: 140 }, { x: 970, y: 460, w: 260, h: 80 },
-            { x: 1280, y: 420, w: 200, h: 120 }, { x: 1530, y: 380, w: 160, h: 160 },
-            { x: 1740, y: 440, w: 260, h: 100 }, { x: 2050, y: 400, w: 200, h: 140 },
-            { x: 2300, y: 480, w: 300, h: 60 }
-        ],
-        collectibles: [
-            { x: 200, y: 430, type: 'coin' }, { x: 520, y: 400, type: 'coin' },
-            { x: 800, y: 350, type: 'soul' }, { x: 1050, y: 410, type: 'coin' },
-            { x: 1350, y: 370, type: 'coin' }, { x: 1600, y: 330, type: 'soul' },
-            { x: 1850, y: 390, type: 'coin' }, { x: 2130, y: 350, type: 'coin' }
-        ],
-        obstacles: [
-            { x: 440, y: 460, w: 22, h: 22, type: 'rock' },
-            { x: 950, y: 440, w: 18, h: 22, type: 'cactus' },
-            { x: 1270, y: 460, w: 24, h: 22, type: 'rock' }
-        ],
-        checkpoints: [{ x: 1150, y: 430 }],
-        enemies: [], npcs: [],
-        finishX: 2480
+        hint: 'من جبال مصر إلى السودان. الطريق طويل.',
+        worldWidth: 6000, dark: true, sandstorm: false,
+        terrain: 'mountain',  // mountain / desert / mixed
+        platforms: [],        // auto-generated below
+        collectibles: [],
+        obstacles: [],
+        checkpoints: [],
+        enemies: [],
+        finishX: 5900,
+        auto: { count: 40, heights: [430, 460, 490], gapMin: 80, gapMax: 140 }
     },
     {
         id: 1, name: 'طريق الجبال', op: 'MOUNTAIN PASS', grid: 'GRID 24-Q',
         time: '07:20', loc: 'المرتفعات الجبلية',
         objective: 'اعبر الطريق الجبلي بأمان',
         hint: 'احذر من الانهيارات الصخرية.',
-        worldWidth: 2900, dark: false, sandstorm: false,
-        platforms: [
-            { x: 0, y: 490, w: 320, h: 50 }, { x: 380, y: 440, w: 180, h: 100 },
-            { x: 620, y: 380, w: 160, h: 160 }, { x: 840, y: 320, w: 200, h: 220 },
-            { x: 1100, y: 400, w: 220, h: 140 }, { x: 1380, y: 350, w: 160, h: 190 },
-            { x: 1600, y: 420, w: 240, h: 120 }, { x: 1900, y: 370, w: 180, h: 170 },
-            { x: 2130, y: 440, w: 260, h: 100 }, { x: 2440, y: 490, w: 460, h: 50 }
-        ],
-        collectibles: [
-            { x: 150, y: 440, type: 'coin' }, { x: 450, y: 400, type: 'coin' },
-            { x: 700, y: 340, type: 'soul' }, { x: 900, y: 280, type: 'coin' },
-            { x: 1180, y: 360, type: 'coin' }, { x: 1450, y: 310, type: 'soul' },
-            { x: 1680, y: 380, type: 'coin' }, { x: 1970, y: 330, type: 'coin' }
-        ],
-        obstacles: [
-            { x: 360, y: 460, w: 20, h: 22, type: 'rock' },
-            { x: 830, y: 300, w: 22, h: 22, type: 'rock' },
-            { x: 1880, y: 460, w: 22, h: 22, type: 'rock' }
-        ],
-        checkpoints: [{ x: 1050, y: 380 }, { x: 1850, y: 400 }],
-        enemies: [{ x: 1500, y: 380, range: 100, speed: 50 }],
-        npcs: [], finishX: 2750
+        worldWidth: 6800, dark: true, sandstorm: false,
+        terrain: 'mountain',
+        platforms: [], collectibles: [], obstacles: [], checkpoints: [], enemies: [],
+        finishX: 6700,
+        auto: { count: 45, heights: [400, 430, 460, 490], gapMin: 70, gapMax: 130 }
     },
     {
         id: 2, name: 'الوادي الصخري', op: 'ROCKY VALLEY', grid: 'GRID 26-N',
         time: '09:15', loc: 'الوادي الجاف',
         objective: 'اعبر الوادي واجمع العملات',
-        hint: 'الطريق وعر. راقب الطاقة.',
-        worldWidth: 3100, dark: false, sandstorm: false,
-        platforms: [
-            { x: 0, y: 490, w: 300, h: 50 }, { x: 350, y: 450, w: 130, h: 90 },
-            { x: 530, y: 400, w: 110, h: 140 }, { x: 690, y: 350, w: 130, h: 190 },
-            { x: 870, y: 400, w: 110, h: 140 }, { x: 1030, y: 450, w: 160, h: 90 },
-            { x: 1240, y: 400, w: 140, h: 140 }, { x: 1430, y: 350, w: 120, h: 190 },
-            { x: 1600, y: 400, w: 150, h: 140 }, { x: 1800, y: 450, w: 190, h: 90 },
-            { x: 2040, y: 400, w: 130, h: 140 }, { x: 2220, y: 350, w: 140, h: 190 },
-            { x: 2410, y: 420, w: 210, h: 120 }, { x: 2670, y: 490, w: 430, h: 50 }
-        ],
-        collectibles: [
-            { x: 120, y: 440, type: 'coin' }, { x: 580, y: 350, type: 'soul' },
-            { x: 740, y: 300, type: 'coin' }, { x: 1080, y: 410, type: 'coin' },
-            { x: 1290, y: 350, type: 'soul' }, { x: 1650, y: 350, type: 'coin' },
-            { x: 1870, y: 410, type: 'coin' }, { x: 2080, y: 350, type: 'soul' },
-            { x: 2270, y: 300, type: 'coin' }, { x: 2500, y: 380, type: 'coin' }
-        ],
-        obstacles: [
-            { x: 330, y: 430, w: 22, h: 22, type: 'rock' },
-            { x: 1010, y: 430, w: 22, h: 22, type: 'rock' },
-            { x: 1580, y: 380, w: 22, h: 22, type: 'rock' },
-            { x: 2020, y: 430, w: 22, h: 22, type: 'rock' }
-        ],
-        checkpoints: [{ x: 1000, y: 430 }, { x: 1790, y: 430 }],
-        enemies: [{ x: 1250, y: 350, range: 90, speed: 55 }, { x: 2200, y: 300, range: 110, speed: 60 }],
-        npcs: [], finishX: 2950
+        hint: 'الوادي وعر. راقب الطاقة.',
+        worldWidth: 7500, dark: true, sandstorm: false,
+        terrain: 'mixed',
+        platforms: [], collectibles: [], obstacles: [], checkpoints: [], enemies: [],
+        finishX: 7400,
+        auto: { count: 50, heights: [380, 420, 460, 500], gapMin: 60, gapMax: 120 }
     },
     {
         id: 3, name: 'العاصفة الرملية', op: 'SANDSTORM', grid: 'GRID 28-S',
         time: '11:40', loc: 'صحراء مفتوحة',
         objective: 'الوصول للمنطقة الآمنة',
         hint: 'احتمِ! العاصفة قادمة.',
-        worldWidth: 2700, dark: false, sandstorm: true, sandstormStart: 3,
-        platforms: [
-            { x: 0, y: 490, w: 400, h: 50 }, { x: 450, y: 450, w: 200, h: 90 },
-            { x: 700, y: 410, w: 180, h: 130 }, { x: 940, y: 450, w: 240, h: 90 },
-            { x: 1230, y: 410, w: 160, h: 130 }, { x: 1440, y: 360, w: 140, h: 180 },
-            { x: 1630, y: 420, w: 220, h: 120 }, { x: 1900, y: 380, w: 160, h: 160 },
-            { x: 2110, y: 450, w: 280, h: 90 }, { x: 2440, y: 490, w: 260, h: 50 }
-        ],
-        collectibles: [
-            { x: 180, y: 440, type: 'coin' }, { x: 540, y: 410, type: 'soul' },
-            { x: 780, y: 370, type: 'coin' }, { x: 1000, y: 410, type: 'coin' },
-            { x: 1290, y: 370, type: 'soul' }, { x: 1500, y: 320, type: 'coin' },
-            { x: 1720, y: 380, type: 'coin' }, { x: 1980, y: 340, type: 'soul' }
-        ],
-        obstacles: [
-            { x: 430, y: 470, w: 22, h: 22, type: 'rock' },
-            { x: 920, y: 430, w: 22, h: 22, type: 'rock' },
-            { x: 1880, y: 460, w: 22, h: 22, type: 'rock' }
-        ],
-        checkpoints: [{ x: 1180, y: 410 }, { x: 2080, y: 430 }],
-        enemies: [{ x: 1650, y: 380, range: 100, speed: 70 }],
-        npcs: [], finishX: 2580
+        worldWidth: 7000, dark: true, sandstorm: true, sandstormStart: 3,
+        terrain: 'desert',
+        platforms: [], collectibles: [], obstacles: [], checkpoints: [], enemies: [],
+        finishX: 6900,
+        auto: { count: 42, heights: [440, 470, 500], gapMin: 80, gapMax: 130 }
     },
     {
-        id: 4, name: 'الكهف', op: 'CAVE PATROL', grid: 'GRID 30-K',
+        id: 4, name: 'الكهف الليلي', op: 'CAVE PATROL', grid: 'GRID 30-K',
         time: '14:20', loc: 'الكهف الجبلي',
         objective: 'اعثر على حقيبة الإسعافات',
         hint: 'الظلام دامس. تحرك بحذر.',
-        worldWidth: 2400, dark: true, sandstorm: false,
-        platforms: [
-            { x: 0, y: 490, w: 320, h: 50 }, { x: 370, y: 450, w: 160, h: 90 },
-            { x: 580, y: 400, w: 140, h: 140 }, { x: 770, y: 360, w: 130, h: 180 },
-            { x: 950, y: 410, w: 190, h: 130 }, { x: 1190, y: 370, w: 150, h: 170 },
-            { x: 1390, y: 420, w: 210, h: 120 }, { x: 1650, y: 380, w: 160, h: 160 },
-            { x: 1860, y: 430, w: 210, h: 110 }, { x: 2120, y: 490, w: 280, h: 50 }
-        ],
-        collectibles: [
-            { x: 150, y: 440, type: 'coin' }, { x: 430, y: 410, type: 'soul' },
-            { x: 640, y: 360, type: 'coin' }, { x: 820, y: 320, type: 'coin' },
-            { x: 1000, y: 370, type: 'soul' }, { x: 1250, y: 330, type: 'coin' },
-            { x: 1450, y: 380, type: 'coin' }, { x: 1720, y: 340, type: 'soul' }
-        ],
-        obstacles: [
-            { x: 350, y: 430, w: 22, h: 22, type: 'rock' },
-            { x: 750, y: 340, w: 22, h: 22, type: 'rock' },
-            { x: 1630, y: 440, w: 22, h: 22, type: 'rock' }
-        ],
-        checkpoints: [{ x: 930, y: 430 }],
-        enemies: [{ x: 1200, y: 330, range: 80, speed: 55 }],
-        npcs: [], finishX: 2280
+        worldWidth: 6500, dark: true, sandstorm: false,
+        terrain: 'mountain',
+        platforms: [], collectibles: [], obstacles: [], checkpoints: [], enemies: [],
+        finishX: 6400,
+        auto: { count: 45, heights: [380, 420, 450, 480], gapMin: 70, gapMax: 130 }
     },
     {
         id: 5, name: 'إنقاذ الجندي', op: 'RESCUE OP', grid: 'GRID 32-R',
         time: '16:55', loc: 'منطقة الدوريات',
         objective: 'ساعد الجندي العالق',
         hint: 'جندي يحتاج مساعدتك.',
-        worldWidth: 2700, dark: false, sandstorm: false,
-        platforms: [
-            { x: 0, y: 490, w: 350, h: 50 }, { x: 400, y: 450, w: 180, h: 90 },
-            { x: 630, y: 400, w: 160, h: 140 }, { x: 840, y: 350, w: 200, h: 190 },
-            { x: 1090, y: 410, w: 220, h: 130 }, { x: 1360, y: 370, w: 150, h: 170 },
-            { x: 1560, y: 420, w: 260, h: 120 }, { x: 1870, y: 380, w: 170, h: 160 },
-            { x: 2090, y: 460, w: 260, h: 80 }, { x: 2400, y: 490, w: 300, h: 50 }
-        ],
-        collectibles: [
-            { x: 200, y: 440, type: 'coin' }, { x: 480, y: 410, type: 'soul' },
-            { x: 700, y: 360, type: 'coin' }, { x: 900, y: 310, type: 'coin' },
-            { x: 1150, y: 370, type: 'soul' }, { x: 1420, y: 330, type: 'coin' },
-            { x: 1650, y: 380, type: 'coin' }, { x: 1930, y: 340, type: 'soul' }
-        ],
-        obstacles: [
-            { x: 380, y: 470, w: 22, h: 22, type: 'rock' },
-            { x: 820, y: 330, w: 22, h: 22, type: 'rock' },
-            { x: 1850, y: 440, w: 22, h: 22, type: 'rock' }
-        ],
-        checkpoints: [{ x: 800, y: 430 }, { x: 1830, y: 420 }],
-        enemies: [{ x: 1400, y: 330, range: 100, speed: 65 }],
-        npcs: [], finishX: 2580
+        worldWidth: 7200, dark: true, sandstorm: false,
+        terrain: 'mountain',
+        platforms: [], collectibles: [], obstacles: [], checkpoints: [], enemies: [],
+        finishX: 7100,
+        auto: { count: 48, heights: [400, 430, 460, 490], gapMin: 70, gapMax: 130 }
     },
     {
         id: 6, name: 'الطريق الليلي', op: 'NIGHT RUN', grid: 'GRID 34-N',
         time: '21:30', loc: 'طريق العودة',
         objective: 'الوصول قبل الفجر',
         hint: 'الليل طويل. لا تتوقف.',
-        worldWidth: 2900, dark: true, sandstorm: false,
-        platforms: [
-            { x: 0, y: 490, w: 300, h: 50 }, { x: 350, y: 450, w: 160, h: 90 },
-            { x: 560, y: 400, w: 140, h: 140 }, { x: 750, y: 360, w: 130, h: 180 },
-            { x: 930, y: 410, w: 190, h: 130 }, { x: 1170, y: 370, w: 150, h: 170 },
-            { x: 1370, y: 420, w: 210, h: 120 }, { x: 1630, y: 380, w: 160, h: 160 },
-            { x: 1840, y: 430, w: 220, h: 110 }, { x: 2110, y: 490, w: 300, h: 50 },
-            { x: 2460, y: 450, w: 200, h: 90 }
-        ],
-        collectibles: [
-            { x: 150, y: 440, type: 'coin' }, { x: 420, y: 410, type: 'soul' },
-            { x: 620, y: 360, type: 'coin' }, { x: 800, y: 320, type: 'coin' },
-            { x: 980, y: 370, type: 'soul' }, { x: 1220, y: 330, type: 'coin' },
-            { x: 1430, y: 380, type: 'coin' }, { x: 1700, y: 340, type: 'soul' },
-            { x: 1910, y: 390, type: 'coin' }, { x: 2250, y: 440, type: 'coin' }
-        ],
-        obstacles: [
-            { x: 330, y: 430, w: 22, h: 22, type: 'rock' },
-            { x: 730, y: 340, w: 22, h: 22, type: 'rock' },
-            { x: 1610, y: 440, w: 22, h: 22, type: 'rock' }
-        ],
-        checkpoints: [{ x: 910, y: 430 }, { x: 1820, y: 420 }],
-        enemies: [{ x: 1000, y: 370, range: 90, speed: 60 }, { x: 1700, y: 340, range: 100, speed: 55 }],
-        npcs: [], finishX: 2780
+        worldWidth: 7800, dark: true, sandstorm: false,
+        terrain: 'mixed',
+        platforms: [], collectibles: [], obstacles: [], checkpoints: [], enemies: [],
+        finishX: 7700,
+        auto: { count: 52, heights: [380, 410, 450, 480, 500], gapMin: 60, gapMax: 120 }
     },
     {
         id: 7, name: 'العودة النهائية', op: 'FINAL RETURN', grid: 'GRID 36-R',
         time: '04:50', loc: 'نقطة الحراسة',
         objective: 'العودة إلى نقطة الحراسة',
         hint: 'آخر مرحلة. أثبت جدارتك.',
-        worldWidth: 3000, dark: false, sandstorm: false,
-        platforms: [
-            { x: 0, y: 490, w: 400, h: 50 }, { x: 450, y: 450, w: 200, h: 90 },
-            { x: 700, y: 400, w: 180, h: 140 }, { x: 930, y: 450, w: 220, h: 90 },
-            { x: 1200, y: 400, w: 160, h: 140 }, { x: 1410, y: 350, w: 140, h: 190 },
-            { x: 1600, y: 410, w: 200, h: 130 }, { x: 1850, y: 370, w: 160, h: 170 },
-            { x: 2060, y: 430, w: 250, h: 110 }, { x: 2360, y: 400, w: 180, h: 140 },
-            { x: 2590, y: 490, w: 410, h: 50 }
-        ],
-        collectibles: [
-            { x: 200, y: 440, type: 'coin' }, { x: 500, y: 410, type: 'coin' },
-            { x: 750, y: 360, type: 'soul' }, { x: 1000, y: 410, type: 'coin' },
-            { x: 1260, y: 360, type: 'soul' }, { x: 1470, y: 310, type: 'coin' },
-            { x: 1700, y: 370, type: 'coin' }, { x: 1920, y: 330, type: 'soul' },
-            { x: 2180, y: 390, type: 'coin' }, { x: 2450, y: 360, type: 'coin' }
-        ],
-        obstacles: [
-            { x: 430, y: 470, w: 22, h: 22, type: 'rock' },
-            { x: 680, y: 380, w: 22, h: 22, type: 'rock' },
-            { x: 1830, y: 460, w: 22, h: 22, type: 'rock' }
-        ],
-        checkpoints: [{ x: 1150, y: 400 }, { x: 2040, y: 410 }],
-        enemies: [{ x: 1450, y: 310, range: 100, speed: 60 }, { x: 2200, y: 390, range: 110, speed: 65 }],
-        npcs: [], finishX: 2900
+        worldWidth: 8000, dark: true, sandstorm: false,
+        terrain: 'mountain',
+        platforms: [], collectibles: [], obstacles: [], checkpoints: [], enemies: [],
+        finishX: 7900,
+        auto: { count: 55, heights: [380, 420, 460, 490], gapMin: 60, gapMax: 120 }
     }
 ];
 
+/* Auto-generate content for a level */
+function generateLevel(level) {
+    const cfg = level.auto;
+    const count = cfg.count;
+    const worldW = level.worldWidth;
+    const gapAvg = (cfg.gapMin + cfg.gapMax) / 2;
+    const pw = Math.max(100, (worldW - 400) / count);
+    let x = 0;
+    const platforms = [];
+    const collectibles = [];
+    const obstacles = [];
+    const checkpoints = [];
+    const enemies = [];
+    const desertStretches = [];
+
+    for (let i = 0; i < count; i++) {
+        const w = pw - (cfg.gapMin + Math.random() * (cfg.gapMax - cfg.gapMin));
+        const h = cfg.heights[i % cfg.heights.length] + (Math.random() * 20 - 10);
+        platforms.push({ x: Math.round(x), y: Math.round(CFG.H - h), w: Math.round(w), h: Math.round(h) });
+
+        // Terrain type for this segment
+        let segType = level.terrain;
+        if (level.terrain === 'mixed') {
+            segType = (i < count / 3) ? 'mountain' : (i < 2 * count / 3 ? 'desert' : 'mountain');
+        }
+        if (segType === 'desert') desertStretches.push({ x: x, w: w });
+
+        // Collectibles above platforms
+        const cCount = 1 + Math.floor(Math.random() * 3);
+        for (let k = 0; k < cCount; k++) {
+            const type = (Math.random() < 0.15) ? 'soul' : 'coin';
+            collectibles.push({
+                x: Math.round(x + w * (0.2 + k * 0.25)),
+                y: Math.round(CFG.H - h - 30 - Math.random() * 30),
+                type
+            });
+        }
+
+        // Obstacles ONLY in desert segments
+        if (segType === 'desert' && Math.random() < 0.5 && i > 2 && i < count - 2) {
+            const oType = Math.random() < 0.5 ? 'rock' : 'cactus';
+            obstacles.push({
+                x: Math.round(x + w * 0.5),
+                y: Math.round(CFG.H - h - 22),
+                w: 22, h: 22, type: oType
+            });
+        }
+
+        // Checkpoints every ~10 platforms
+        if (i > 0 && i % 10 === 0) {
+            checkpoints.push({ x: Math.round(x), y: Math.round(CFG.H - h - 20) });
+        }
+
+        // Enemies in later levels
+        if (level.id >= 1 && i > 4 && i < count - 2 && Math.random() < 0.15) {
+            enemies.push({
+                x: Math.round(x + w * 0.5),
+                y: Math.round(CFG.H - h - 48),
+                range: 80 + Math.random() * 60,
+                speed: 50 + Math.random() * 30
+            });
+        }
+
+        x += pw;
+    }
+
+    level.platforms = platforms;
+    level.collectibles = collectibles;
+    level.obstacles = obstacles;
+    level.checkpoints = checkpoints;
+    level.enemies = enemies;
+}
+
+/* Generate all levels at load */
+LEVELS.forEach(generateLevel);
+
 /* ============================================================
-   15. LEVEL RUNTIME
+   14. LEVEL RUNTIME
    ============================================================ */
 const Level = {
     data: null,
-    platforms: [], collectibles: [], checkpoints: [], obstacles: [], enemies: [], npcs: [],
+    platforms: [], collectibles: [], checkpoints: [], obstacles: [], enemies: [],
     fallingRocks: [],
     lastCheckpoint: { x: 60, y: 400 },
     startX: 60, startY: 400,
     worldWidth: 2600,
     time: 0, stormTimer: 0, stormIntensity: 0,
     collectTarget: 0, rockEventTimer: 0,
+    endless: false, endlessChunk: 0,
 
     load(index) {
         this.data = LEVELS[index];
@@ -1065,14 +951,81 @@ const Level = {
         this.checkpoints = this.data.checkpoints.map(c => new Checkpoint(c.x, c.y));
         this.obstacles = this.data.obstacles.map(o => new Obstacle(o.x, o.y, o.w, o.h, o.type));
         this.enemies = [];
-        this.npcs = [];
         this.fallingRocks = [];
         this.startX = 60; this.startY = 400;
         this.lastCheckpoint = { x: this.startX, y: this.startY };
         this.time = 0; this.stormTimer = 0; this.stormIntensity = 0;
         this.collectTarget = this.data.collectibles.filter(c => c.type === 'coin').length;
         this.rockEventTimer = 6 + Math.random() * 6;
+        this.endless = false; this.endlessChunk = 0;
         Particles.clear();
+    },
+
+    loadEndless() {
+        this.data = {
+            id: 99, name: 'دورية مفتوحة', op: 'ENDLESS PATROL', grid: 'GRID ∞-∞',
+            time: '∞', loc: 'الحدود المصرية السودانية',
+            objective: 'اصمد أطول وقت ممكن',
+            hint: 'المهمة المفتوحة. لا نهاية.',
+            worldWidth: 100000, dark: true, sandstorm: false,
+            terrain: 'mountain'
+        };
+        this.worldWidth = 100000;
+        this.platforms = [];
+        this.collectibles = [];
+        this.checkpoints = [];
+        this.obstacles = [];
+        this.enemies = [];
+        this.fallingRocks = [];
+        this.startX = 60; this.startY = 400;
+        this.lastCheckpoint = { x: this.startX, y: this.startY };
+        this.time = 0; this.stormTimer = 0; this.stormIntensity = 0;
+        this.collectTarget = 0;
+        this.rockEventTimer = 8;
+        this.endless = true; this.endlessChunk = 0;
+        this.generateEndlessChunk();
+        Particles.clear();
+    },
+
+    generateEndlessChunk() {
+        const startX = this.endlessChunk * 1200;
+        const count = 8;
+        const pw = 150;
+        const desert = (this.endlessChunk % 3 === 1);
+
+        for (let i = 0; i < count; i++) {
+            const x = startX + i * pw;
+            const h = 400 + Math.floor(Math.random() * 100);
+            this.platforms.push({ x, y: CFG.H - h, w: pw - 30, h });
+            // collectibles
+            const cc = 1 + Math.floor(Math.random() * 2);
+            for (let k = 0; k < cc; k++) {
+                const type = (Math.random() < 0.15) ? 'soul' : 'coin';
+                this.collectibles.push(new Collectible(
+                    x + 40 + k * 40,
+                    CFG.H - h - 30,
+                    type
+                ));
+            }
+            if (desert && i > 0 && Math.random() < 0.6) {
+                this.obstacles.push(new Obstacle(
+                    x + pw * 0.5, CFG.H - h - 22, 22, 22,
+                    Math.random() < 0.5 ? 'rock' : 'cactus'
+                ));
+            }
+            if (i === 4) {
+                this.checkpoints.push(new Checkpoint(x, CFG.H - h - 20));
+            }
+        }
+        this.endlessChunk++;
+    },
+
+    ensureEndlessChunk(playerX) {
+        if (!this.endless) return;
+        const nextChunkStart = this.endlessChunk * 1200;
+        if (playerX > nextChunkStart - 2000) {
+            this.generateEndlessChunk();
+        }
     },
 
     update(dt, player) {
@@ -1084,10 +1037,12 @@ const Level = {
             this.stormIntensity = Math.min(1, (this.stormTimer - (this.data.sandstormStart || 3)) / 6);
         }
 
+        if (this.endless) this.ensureEndlessChunk(player.x);
+
         // Falling rocks
         this.rockEventTimer -= dt;
         if (this.rockEventTimer <= 0) {
-            this.rockEventTimer = 10 + Math.random() * 8;
+            this.rockEventTimer = 12 + Math.random() * 10;
             const baseX = player.x + CFG.W * 0.35;
             const count = 3 + Math.floor(Math.random() * 3);
             for (let i = 0; i < count; i++) {
@@ -1098,6 +1053,7 @@ const Level = {
             }
             UI.showRadio('⚠ انهيار صخري! احتمِ!', 2200);
             if (Game.camera) Game.camera.shake(5, 0.5);
+            UI.flashAlert('⚠ ROCKFALL WARNING');
         }
         for (let i = this.fallingRocks.length - 1; i >= 0; i--) {
             this.fallingRocks[i].update(dt, player);
@@ -1110,113 +1066,129 @@ const Level = {
             const sx = p.x - cam.x + cam.offsetX;
             const sy = p.y - cam.y + cam.offsetY;
             if (sx + p.w < -100 || sx > CFG.W + 100) continue;
-            ctx.fillStyle = this.data.dark ? '#3a3528' : '#8a7a6a';
+
+            // Mountain rock body
+            ctx.fillStyle = this.data.dark ? '#2a2820' : '#5a4a3a';
             ctx.fillRect(sx, sy, p.w, p.h);
-            ctx.fillStyle = this.data.dark ? '#4a4538' : '#c8b590';
+
+            // Top surface (rock texture)
+            const topGrad = ctx.createLinearGradient(0, sy, 0, sy + 10);
+            topGrad.addColorStop(0, this.data.dark ? '#5a5548' : '#a09080');
+            topGrad.addColorStop(1, this.data.dark ? '#3a3528' : '#7a6a5a');
+            ctx.fillStyle = topGrad;
             ctx.fillRect(sx, sy, p.w, 10);
-            ctx.fillStyle = 'rgba(0,0,0,0.25)';
-            ctx.fillRect(sx, sy + p.h, p.w, 5);
+
+            // Rock cracks
+            ctx.strokeStyle = this.data.dark ? 'rgba(0,0,0,0.6)' : 'rgba(40,30,20,0.6)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let cx = 0; cx < p.w; cx += 30) {
+                ctx.moveTo(sx + cx, sy + 10);
+                ctx.lineTo(sx + cx + 6, sy + 25);
+                ctx.lineTo(sx + cx - 3, sy + 45);
+            }
+            ctx.stroke();
+
+            // Bottom shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.fillRect(sx, sy + p.h, p.w, 6);
         }
         for (const o of this.obstacles) o.draw(ctx, cam);
         for (const c of this.checkpoints) c.draw(ctx, cam);
         for (const c of this.collectibles) c.draw(ctx, cam);
         for (const r of this.fallingRocks) r.draw(ctx, cam);
 
-        // Finish flag
-        const fx = this.data.finishX - cam.x + cam.offsetX;
-        const fy = CFG.H - 40;
-        ctx.fillStyle = '#8a8a8a';
-        ctx.fillRect(fx, fy - 120, 5, 120);
-        ctx.fillStyle = '#44dd44';
-        ctx.beginPath();
-        ctx.moveTo(fx + 5, fy - 120);
-        ctx.lineTo(fx + 45, fy - 105);
-        ctx.lineTo(fx + 5, fy - 90);
-        ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 10px Consolas, monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('EXTRACT', fx + 20, fy - 128);
+        if (!this.endless) {
+            const fx = this.data.finishX - cam.x + cam.offsetX;
+            const fy = CFG.H - 40;
+            ctx.fillStyle = '#8a8a8a';
+            ctx.fillRect(fx, fy - 120, 5, 120);
+            ctx.fillStyle = '#44dd44';
+            ctx.beginPath();
+            ctx.moveTo(fx + 5, fy - 120);
+            ctx.lineTo(fx + 45, fy - 105);
+            ctx.lineTo(fx + 5, fy - 90);
+            ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 10px Consolas, monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('EXTRACT', fx + 20, fy - 128);
+        }
     }
 };
 
 /* ============================================================
-   16. BACKGROUND (with image assets)
+   15. BACKGROUND — Night mountain single background
    ============================================================ */
 const Background = {
     draw(ctx, cam, data) {
-        // Sky fallback
-        const skyBg = Assets.getBg('sky');
-        const farBg = Assets.getBg('far');
-        const midBg = Assets.getBg('mid');
-        const nearBg = Assets.getBg('near');
+        // Night sky gradient
+        const grad = ctx.createLinearGradient(0, 0, 0, CFG.H);
+        grad.addColorStop(0, '#020210');
+        grad.addColorStop(0.4, '#0a0a2a');
+        grad.addColorStop(0.75, '#151532');
+        grad.addColorStop(1, '#1a1020');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, CFG.W, CFG.H);
 
-        // Layer 0: Sky
-        if (skyBg && skyBg.loaded) {
-            ctx.drawImage(skyBg.img, 0, 0, CFG.W, CFG.H);
-        } else {
-            const grad = ctx.createLinearGradient(0, 0, 0, CFG.H);
-            if (data.dark) {
-                grad.addColorStop(0, '#05050f'); grad.addColorStop(1, '#1a1a30');
-            } else if (data.sandstorm) {
-                grad.addColorStop(0, '#a08050'); grad.addColorStop(1, '#e0c090');
-            } else {
-                grad.addColorStop(0, '#3a6ba8'); grad.addColorStop(0.8, '#d4c090'); grad.addColorStop(1, '#e8c890');
-            }
-            ctx.fillStyle = grad; ctx.fillRect(0, 0, CFG.W, CFG.H);
+        // Stars
+        for (let i = 0; i < 80; i++) {
+            const sx = (i * 137 + 30) % CFG.W;
+            const sy = (i * 71) % 280;
+            const tw = 0.5 + Math.abs(Math.sin(cam.x * 0.001 + i * 0.7)) * 0.5;
+            ctx.globalAlpha = tw;
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(sx - cam.x * 0.02 % CFG.W, sy, 1.5, 1.5);
         }
+        ctx.globalAlpha = 1;
 
-        // Sun / Moon
-        if (data.dark) {
-            ctx.fillStyle = '#e8e8d0';
-            ctx.beginPath(); ctx.arc(CFG.W * 0.78, 120, 26, 0, Math.PI * 2); ctx.fill();
-            for (let i = 0; i < 40; i++) {
-                const sx = (i * 137) % CFG.W;
-                const sy = (i * 71) % 200;
-                ctx.globalAlpha = 0.5 + Math.abs(Math.sin(cam.x * 0.001 + i)) * 0.5;
-                ctx.fillStyle = '#fff'; ctx.fillRect(sx, sy, 1.5, 1.5);
-            }
-            ctx.globalAlpha = 1;
-        }
+        // Moon
+        const mx = CFG.W * 0.78;
+        const my = 110;
+        ctx.fillStyle = 'rgba(255,240,200,0.15)';
+        ctx.beginPath(); ctx.arc(mx, my, 70, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#f8e8b8';
+        ctx.beginPath(); ctx.arc(mx, my, 32, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(220,200,160,0.7)';
+        ctx.beginPath(); ctx.arc(mx - 8, my - 4, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(mx + 10, my + 8, 4, 0, Math.PI * 2); ctx.fill();
 
-        // Layer 1: Far mountains (parallax 0.10)
-        if (farBg && farBg.loaded) {
-            const off = (cam.x * 0.10) % CFG.W;
-            ctx.globalAlpha = 0.9;
-            ctx.drawImage(farBg.img, -off, 100, CFG.W + 10, 320);
-            ctx.drawImage(farBg.img, CFG.W - off, 100, CFG.W + 10, 320);
-            ctx.globalAlpha = 1;
-        }
+        // Distant mountain range (far parallax)
+        this.drawMountains(ctx, cam, 0.08, 200, '#0a0a1a', 60, 130);
+        // Mid mountains
+        this.drawMountains(ctx, cam, 0.20, 280, '#080814', 80, 160);
+        // Near mountains (foreground)
+        this.drawMountains(ctx, cam, 0.42, 360, '#030308', 100, 200);
 
-        // Layer 2: Mid mountains (parallax 0.25)
-        if (midBg && midBg.loaded) {
-            const off = (cam.x * 0.25) % CFG.W;
-            ctx.globalAlpha = 0.95;
-            ctx.drawImage(midBg.img, -off, 150, CFG.W + 10, 340);
-            ctx.drawImage(midBg.img, CFG.W - off, 150, CFG.W + 10, 340);
-            ctx.globalAlpha = 1;
-        }
+        // Ground level shading
+        ctx.fillStyle = 'rgba(5,5,15,0.6)';
+        ctx.fillRect(0, CFG.H - 45, CFG.W, 45);
+    },
 
-        // Layer 3: Near desert (parallax 0.45)
-        if (nearBg && nearBg.loaded) {
-            const off = (cam.x * 0.45) % CFG.W;
-            ctx.drawImage(nearBg.img, -off, 340, CFG.W + 10, 200);
-            ctx.drawImage(nearBg.img, CFG.W - off, 340, CFG.W + 10, 200);
-        } else {
-            ctx.fillStyle = data.dark ? '#2a2518' : (data.sandstorm ? '#c8a373' : '#d4b088');
-            ctx.fillRect(0, 400, CFG.W, CFG.H - 400);
+    drawMountains(ctx, cam, parallax, baseY, color, amp, spread) {
+        const off = (cam.x * parallax) % spread;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(-spread, CFG.H);
+        for (let i = -spread; i <= CFG.W + spread * 2; i += 20) {
+            const wx = i + off;
+            const y = baseY + Math.sin(wx * 0.004) * amp * 0.5 + Math.cos(wx * 0.011) * amp * 0.3;
+            ctx.lineTo(i, y);
         }
+        ctx.lineTo(CFG.W + spread, CFG.H);
+        ctx.closePath();
+        ctx.fill();
     },
 
     drawStormOverlay(ctx, intensity, time) {
         if (intensity <= 0) return;
-        ctx.fillStyle = `rgba(180, 150, 100, ${intensity * 0.25})`;
+        ctx.fillStyle = `rgba(140, 110, 70, ${intensity * 0.25})`;
         ctx.fillRect(0, 0, CFG.W, CFG.H);
         for (let i = 0; i < 60; i++) {
             const sx = ((i * 89 + time * 400 * intensity) % (CFG.W + 200)) - 100;
             const sy = (i * 53) % CFG.H;
             const len = 20 + Math.random() * 40;
-            ctx.strokeStyle = `rgba(210, 180, 120, ${0.2 + Math.random() * 0.25})`;
+            ctx.strokeStyle = `rgba(200, 170, 110, ${0.2 + Math.random() * 0.25})`;
             ctx.lineWidth = 1 + Math.random();
             ctx.beginPath();
             ctx.moveTo(sx, sy); ctx.lineTo(sx - len, sy + 4);
@@ -1228,27 +1200,32 @@ const Background = {
         ctx.fillStyle = vg; ctx.fillRect(0, 0, CFG.W, CFG.H);
     },
 
-    drawDarkOverlay(ctx) {
-        const vg = ctx.createRadialGradient(CFG.W/2, CFG.H/2, 80, CFG.W/2, CFG.H/2, 480);
-        vg.addColorStop(0, 'rgba(0,0,0,0)');
-        vg.addColorStop(1, 'rgba(0,0,20,0.85)');
-        ctx.fillStyle = vg; ctx.fillRect(0, 0, CFG.W, CFG.H);
+    drawDarkOverlay(ctx, player, cam) {
+        // Night darkness with player halo
+        const px = player ? player.x - cam.x + cam.offsetX : CFG.W/2;
+        const py = player ? player.y - cam.y + cam.offsetY : CFG.H/2;
+        const vg = ctx.createRadialGradient(px, py, 100, px, py, 500);
+        vg.addColorStop(0, 'rgba(0,0,20,0.15)');
+        vg.addColorStop(1, 'rgba(0,0,20,0.75)');
+        ctx.fillStyle = vg;
+        ctx.fillRect(0, 0, CFG.W, CFG.H);
     }
 };
 
 /* ============================================================
-   17. UI
+   16. UI
    ============================================================ */
 const UI = {
     els: {},
     _radioT: null,
+    _alertT: null,
     init() {
         const ids = [
-            'hudOpName','hudTime','hudGrid',
-            'healthFill','staminaFill','hudScore','hudCombo','missionText','objectiveProgress',
-            'radioText','radioChatter','loaderFill','loaderPct',
+            'hudOpName','hudTime','hudGrid','healthFill','staminaFill','healthVal','staminaVal',
+            'hudScore','hudCombo','missionText','objectiveProgress','distanceDisplay',
+            'radioText','radioChatter','loaderFill','loaderPct','alertLine','alerts',
             'statScore','statTime','statItems','statHealth','rankAward',
-            'overScore','overLevel','menuHighScore',
+            'overScore','overDistance','menuHighScore','menuSayedImg','radarDot',
             'briefingNum','briefingTitle','briefingLoc','briefingTime','briefingObjective','briefingHint',
             'missionGrid'
         ];
@@ -1258,24 +1235,32 @@ const UI = {
         if (!this.els.healthFill) return;
         this.els.healthFill.style.width = (player.health / player.maxHealth * 100) + '%';
         this.els.staminaFill.style.width = (player.stamina / player.maxStamina * 100) + '%';
+        this.els.healthVal.textContent = player.health + '/' + player.maxHealth;
+        this.els.staminaVal.textContent = Math.round(player.stamina) + '%';
         this.els.hudScore.textContent = Game.score;
         this.els.missionText.textContent = level.data.objective;
         this.els.hudOpName.textContent = level.data.op;
         this.els.hudGrid.textContent = level.data.grid;
         this.els.hudTime.textContent = level.data.time;
+        const dist = Math.round(player.x / 10);
+        this.els.distanceDisplay.textContent = String(dist).padStart(4, '0') + 'm';
+
+        // Radar dot position (based on player relative to world)
+        const rx = Math.min(1, player.x / level.worldWidth) * 100;
+        if (this.els.radarDot) this.els.radarDot.style.left = (20 + rx * 0.6) + '%';
+
         if (Game.combo > 1) {
             this.els.hudCombo.textContent = '×' + Game.combo;
             this.els.hudCombo.classList.add('active');
         } else {
             this.els.hudCombo.classList.remove('active');
         }
-        const done = level.collectibles.filter(c => c.collected && c.type === 'coin').length;
-        if (level.collectTarget > 0) {
-            this.els.objectiveProgress.textContent = `COINS  ${done} / ${level.collectTarget}`;
+
+        if (level.endless) {
+            this.els.objectiveProgress.textContent = 'ENDLESS PATROL — اصمد';
         } else {
-            const total = level.collectibles.length;
-            const got = level.collectibles.filter(c => c.collected).length;
-            this.els.objectiveProgress.textContent = `INTEL  ${got} / ${total}`;
+            const done = level.collectibles.filter(c => c.collected && c.type === 'coin').length;
+            this.els.objectiveProgress.textContent = `COINS  ${done} / ${level.collectTarget}`;
         }
     },
     showRadio(text, duration = 3000) {
@@ -1286,6 +1271,15 @@ const UI = {
         clearTimeout(this._radioT);
         this._radioT = setTimeout(() => {
             this.els.radioChatter.classList.add('hidden');
+        }, duration);
+    },
+    flashAlert(text, duration = 2000) {
+        if (!this.els.alerts) return;
+        this.els.alertLine.textContent = text;
+        this.els.alerts.classList.remove('hidden');
+        clearTimeout(this._alertT);
+        this._alertT = setTimeout(() => {
+            this.els.alerts.classList.add('hidden');
         }, duration);
     },
     showBriefing(levelData, index) {
@@ -1307,9 +1301,9 @@ const UI = {
         this.els.rankAward.textContent = '★ '.repeat(stars).trim() + ' ☆'.repeat(3 - stars);
         document.getElementById('missionComplete').classList.remove('hidden');
     },
-    showGameOver(score, level) {
+    showGameOver(score, distance) {
         this.els.overScore.textContent = score;
-        this.els.overLevel.textContent = level + 1;
+        this.els.overDistance.textContent = distance + 'm';
         document.getElementById('gameOver').classList.remove('hidden');
     },
     showMissionGrid(unlocked, current) {
@@ -1340,7 +1334,7 @@ const UI = {
 };
 
 /* ============================================================
-   18. GAME CONTROLLER
+   17. GAME CONTROLLER
    ============================================================ */
 const Game = {
     state: STATES.LOADING,
@@ -1349,15 +1343,20 @@ const Game = {
     currentLevel: 0, unlockedLevels: 1, highScore: 0,
     lastFrame: 0, player: null, camera: null,
     canvas: null, ctx: null,
+    endless: false,
 
     init() {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
+        // Ensure high-quality rendering
+        this.ctx.imageSmoothingEnabled = true;
+        this.ctx.imageSmoothingQuality = 'high';
+
         UI.init();
         Input.init();
 
         try {
-            const save = JSON.parse(localStorage.getItem('sayed_save_v3'));
+            const save = JSON.parse(localStorage.getItem('sayed_save_v4'));
             if (save) {
                 this.unlockedLevels = save.unlockedLevels || 1;
                 this.highScore = save.highScore || 0;
@@ -1376,6 +1375,7 @@ const Game = {
             });
         };
         bind('menuStart', () => this.startLevel(0));
+        bind('menuEndless', () => this.startEndless());
         bind('menuContinue', () => {
             const lvl = Math.max(0, Math.min(this.unlockedLevels - 1, LEVELS.length - 1));
             this.startLevel(lvl);
@@ -1398,7 +1398,6 @@ const Game = {
             document.getElementById('briefing').classList.add('hidden');
             this.beginPlay();
         };
-
         document.getElementById('btn-pause').onclick = () => this.togglePause();
         document.getElementById('btnResume').onclick = () => this.togglePause();
         document.getElementById('btnRestart').onclick = () => { AudioMgr.sfx.select(); this.restartLevel(); };
@@ -1421,24 +1420,55 @@ const Game = {
         bindSlider('volMusic', 'music', 'volMusicVal');
         bindSlider('volSfx', 'sfx', 'volSfxVal');
 
+        // Handle window resize for responsive canvas
+        window.addEventListener('resize', () => this.resizeCanvas());
+        this.resizeCanvas();
+
         requestAnimationFrame(this.loop.bind(this));
     },
 
+    resizeCanvas() {
+        // Canvas internal size fixed; CSS handles display scaling
+        // No changes needed — object-fit: contain handles it
+    },
+
     startLevel(index) {
+        this.endless = false;
         this.currentLevel = Math.max(0, Math.min(index, LEVELS.length - 1));
         document.getElementById('mainMenu').classList.add('hidden');
         UI.showBriefing(LEVELS[this.currentLevel], this.currentLevel);
         this.state = STATES.BRIEFING;
     },
 
+    startEndless() {
+        this.endless = true;
+        this.currentLevel = -1;
+        document.getElementById('mainMenu').classList.add('hidden');
+        UI.showBriefing({
+            name: 'دورية مفتوحة',
+            loc: 'الحدود المصرية السودانية',
+            time: '∞',
+            objective: 'اصمد أطول وقت ممكن',
+            hint: 'ENDLESS MODE — لا نهاية. كل 1200 متر تُولَّد أرض جديدة.'
+        }, 0);
+        this.state = STATES.BRIEFING;
+    },
+
     beginPlay() {
-        // ✅ FIX: Reset canvas size to ensure rendering works
         this.canvas.width = CFG.W;
         this.canvas.height = CFG.H;
+        this.ctx.imageSmoothingEnabled = true;
+        this.ctx.imageSmoothingQuality = 'high';
 
         this.player = new Player(60, 400);
         this.camera = new Camera();
-        Level.load(this.currentLevel);
+
+        if (this.endless) {
+            Level.loadEndless();
+        } else {
+            Level.load(this.currentLevel);
+        }
+
         this.player.x = Level.startX;
         this.player.y = Level.startY;
         this.score = 0;
@@ -1457,10 +1487,12 @@ const Game = {
             const el = document.getElementById(id);
             if (el) el.classList.add('hidden');
         });
+        if (UI.els.alerts) UI.els.alerts.classList.add('hidden');
 
         if (AudioMgr.ctx) AudioMgr.startMusic();
 
-        setTimeout(() => UI.showRadio('سيّد، ابدأ الدورية من جبال مصر إلى السودان.', 4000), 800);
+        setTimeout(() => UI.showRadio('سيّد، ابدأ الدورية. جبال مصر والسودان في انتظارك.', 4000), 800);
+        setTimeout(() => UI.flashAlert('⚠ HOSTILE TERRAIN — ALERT'), 1500);
     },
 
     restartLevel() {
@@ -1480,12 +1512,14 @@ const Game = {
 
     returnToMenu() {
         this.state = STATES.MENU;
+        this.endless = false;
         AudioMgr.stopMusic();
         document.getElementById('hud').classList.add('hidden');
         document.getElementById('btn-pause').classList.add('hidden');
         document.getElementById('mobile-controls').classList.add('hidden');
-        ['pauseOverlay','gameOver','missionComplete'].forEach(id => {
-            document.getElementById(id).classList.add('hidden');
+        ['pauseOverlay','gameOver','missionComplete','briefing'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
         });
         document.getElementById('mainMenu').classList.remove('hidden');
         if (UI.els.menuHighScore) UI.els.menuHighScore.textContent = 'HIGH SCORE: ' + this.highScore;
@@ -1507,7 +1541,8 @@ const Game = {
         AudioMgr.sfx.fail();
         if (this.score > this.highScore) this.highScore = this.score;
         this.save();
-        UI.showGameOver(this.score, this.currentLevel);
+        const dist = this.player ? Math.round(this.player.x / 10) : 0;
+        UI.showGameOver(this.score, dist);
         document.getElementById('mobile-controls').classList.add('hidden');
     },
 
@@ -1530,7 +1565,7 @@ const Game = {
 
     save() {
         try {
-            localStorage.setItem('sayed_save_v3', JSON.stringify({
+            localStorage.setItem('sayed_save_v4', JSON.stringify({
                 unlockedLevels: this.unlockedLevels,
                 highScore: this.highScore,
                 currentLevel: this.currentLevel
@@ -1541,11 +1576,7 @@ const Game = {
     loop(t) {
         const dt = Math.min((t - this.lastFrame) / 1000, 0.05);
         this.lastFrame = t;
-
-        if (!this.ctx) {
-            requestAnimationFrame(this.loop.bind(this));
-            return;
-        }
+        if (!this.ctx) { requestAnimationFrame(this.loop.bind(this)); return; }
 
         if (this.state === STATES.PLAYING) {
             this.update(dt);
@@ -1553,7 +1584,6 @@ const Game = {
         } else if (this.state === STATES.PAUSED) {
             this.render();
         }
-
         Input.update();
         requestAnimationFrame(this.loop.bind(this));
     },
@@ -1576,16 +1606,13 @@ const Game = {
             if (pb.x + pb.w > cb.x && pb.x < cb.x + cb.w &&
                 pb.y + pb.h > cb.y && pb.y < cb.y + cb.h) {
                 c.collected = true;
-
                 const now = performance.now();
                 if (this._lastPickupTime && now - this._lastPickupTime < 2500) {
                     this.combo = Math.min(this.combo + 1, 5);
-                } else {
-                    this.combo = 1;
-                }
+                } else this.combo = 1;
                 this._lastPickupTime = now;
 
-                const values = { coin: 10, soul: 25, water: 10, food: 15, supplies: 25, star: 50 };
+                const values = { coin: 10, soul: 25 };
                 const gained = (values[c.type] || 10) * this.combo;
                 this.score += gained;
 
@@ -1596,12 +1623,12 @@ const Game = {
                     UI.showRadio('💖 روح مُطهرة! +صحة وطاقة', 2500);
                 } else {
                     AudioMgr.sfx.pickup();
+                    if (this.combo > 1) {
+                        AudioMgr.sfx.combo();
+                        UI.showRadio(`🔥 COMBO ×${this.combo}  +${gained}`, 1400);
+                    }
                 }
-                if (this.combo > 1 && c.type !== 'soul') {
-                    AudioMgr.sfx.combo();
-                    UI.showRadio(`🔥 COMBO ×${this.combo}  +${gained}`, 1400);
-                }
-                Particles.spawn(c.x + 12, c.y + 12, 8, '#ffdd88', 140, 0.6, 200, 3);
+                Particles.spawn(c.x + 13, c.y + 13, 8, '#ffdd88', 140, 0.6, 200, 3);
 
                 const milestone = Math.floor(this.score / 500);
                 if (milestone > this._crateMilestone) {
@@ -1653,8 +1680,8 @@ const Game = {
             }
         }
 
-        // Finish
-        if (p.x >= Level.data.finishX && !p.finishLock) {
+        // Finish (campaign only)
+        if (!Level.endless && p.x >= Level.data.finishX && !p.finishLock) {
             p.finishLock = true;
             this.completeLevel();
             return;
@@ -1665,11 +1692,7 @@ const Game = {
         // Sandstorm particles
         if (Level.data.sandstorm && Level.stormIntensity > 0.2) {
             if (Math.random() < 0.5) {
-                Particles.spawn(
-                    this.camera.x + CFG.W + 40,
-                    Math.random() * CFG.H,
-                    1, '#d4a373', 0, 0.7, -30, 2
-                );
+                Particles.spawn(this.camera.x + CFG.W + 40, Math.random() * CFG.H, 1, '#d4a373', 0, 0.7, -30, 2);
                 const last = Particles.list[Particles.list.length - 1];
                 if (last) {
                     last.vx = -(300 + Math.random() * 400) * Level.stormIntensity;
@@ -1682,6 +1705,8 @@ const Game = {
     render() {
         const ctx = this.ctx;
         if (!ctx) return;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
 
         Background.draw(ctx, this.camera, Level.data);
         Level.draw(ctx, this.camera);
@@ -1690,14 +1715,15 @@ const Game = {
 
         if (Level.data.sandstorm) Background.drawStormOverlay(ctx, Level.stormIntensity, Level.time);
         if (Level.data.dark) {
-            Background.drawDarkOverlay(ctx);
+            Background.drawDarkOverlay(ctx, this.player, this.camera);
+            // Player glow
             if (this.player) {
-                ctx.save();
-                ctx.globalCompositeOperation = 'lighter';
                 const px = this.player.x - this.camera.x + this.camera.offsetX;
                 const py = this.player.y - this.camera.y + this.camera.offsetY;
-                const glow = ctx.createRadialGradient(px, py, 0, px, py, 200);
-                glow.addColorStop(0, 'rgba(255,220,150,0.18)');
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                const glow = ctx.createRadialGradient(px, py, 0, px, py, 180);
+                glow.addColorStop(0, 'rgba(255,220,150,0.22)');
                 glow.addColorStop(1, 'rgba(255,220,150,0)');
                 ctx.fillStyle = glow;
                 ctx.fillRect(0, 0, CFG.W, CFG.H);
@@ -1708,7 +1734,7 @@ const Game = {
 };
 
 /* ============================================================
-   19. BOOTSTRAP
+   18. BOOTSTRAP
    ============================================================ */
 (function bootstrap() {
     const loaderFill = document.getElementById('loaderFill');
@@ -1723,20 +1749,12 @@ const Game = {
         loadingScreen.classList.add('hide');
         setTimeout(() => {
             loadingScreen.style.display = 'none';
-            try {
-                Game.init();
-            } catch (e) {
-                console.error('Game init error:', e);
-                alert('حدث خطأ في بدء اللعبة: ' + e.message);
-            }
+            try { Game.init(); }
+            catch (e) { console.error('Game init error:', e); alert('حدث خطأ: ' + e.message); }
         }, 400);
     };
 
-    const safetyTimeout = setTimeout(() => {
-        console.warn('⚠ Safety timeout — forcing start');
-        forceStart();
-    }, 10000);
-
+    const safetyTimeout = setTimeout(() => { console.warn('Safety timeout'); forceStart(); }, 12000);
     if (skipBtn) skipBtn.addEventListener('click', forceStart);
 
     Assets.loadAll((progress) => {
@@ -1754,10 +1772,7 @@ const Game = {
 
     document.addEventListener('contextmenu', e => e.preventDefault());
     document.addEventListener('gesturestart', e => e.preventDefault());
-
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden && Game.state === STATES.PLAYING) {
-            Game.togglePause();
-        }
+        if (document.hidden && Game.state === STATES.PLAYING) Game.togglePause();
     });
 })();
