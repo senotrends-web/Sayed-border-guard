@@ -52,8 +52,8 @@
                     <div class="radar-cross radar-cross-h"></div>
                     <div class="radar-cross radar-cross-v"></div>
                     <div class="radar-player" id="radarPlayer"></div>
-                    <div class="radar-enemy" id="radarEnemy1"></div>
-                    <div class="radar-enemy" id="radarEnemy2"></div>
+                    <div class="radar-enemy radar-enemy1" id="radarEnemy1"></div>
+                    <div class="radar-enemy radar-enemy2" id="radarEnemy2"></div>
                 </div>
                 <span class="radar-lbl">RADAR</span>
             </div>
@@ -73,16 +73,22 @@
 
     <button id="btnPause" class="btn-pause hidden">❚❚</button>
 
-    <!-- MOBILE CONTROLS -->
+    <!-- MOBILE D-PAD CONTROLS (like reference) -->
     <div id="mc" class="mc hidden">
-        <div class="mc-left">
-            <button class="mc-btn" id="btnLeft"><span class="arrow arrow-left"></span></button>
-            <button class="mc-btn" id="btnRight"><span class="arrow arrow-right"></span></button>
+        <!-- LEFT: D-PAD -->
+        <div class="dpad">
+            <button class="dpad-btn dpad-up" id="btnUp"><span class="arrow arrow-up"></span></button>
+            <button class="dpad-btn dpad-left" id="btnLeft"><span class="arrow arrow-left"></span></button>
+            <div class="dpad-center"></div>
+            <button class="dpad-btn dpad-right" id="btnRight"><span class="arrow arrow-right"></span></button>
+            <button class="dpad-btn dpad-down" id="btnDown"><span class="arrow arrow-down"></span></button>
         </div>
-        <div class="mc-right">
-            <button class="mc-btn mc-small" id="btnCrouch"><span class="arrow arrow-down"></span></button>
-            <button class="mc-btn mc-big" id="btnJump"><span class="arrow arrow-up"></span></button>
-            <button class="mc-btn mc-interact" id="btnInteract">✦</button>
+
+        <!-- RIGHT: ACTION BUTTONS -->
+        <div class="actions">
+            <button class="action-btn action-star" id="btnInteract">★</button>
+            <button class="action-btn action-jump" id="btnJump"><span class="arrow arrow-up"></span></button>
+            <button class="action-btn action-crouch" id="btnCrouch"><span class="arrow arrow-down"></span></button>
         </div>
     </div>
 
@@ -116,7 +122,7 @@
             <div class="stats">
                 <div><span>SCORE</span><b id="cScore">0</b></div>
                 <div><span>TIME</span><b id="cTime">0s</b></div>
-                <div><span>INTEL</span><b id="cItems">0</b></div>
+                <div><span>COINS</span><b id="cItems">0</b></div>
                 <div><span>VITALS</span><b id="cHp">0</b></div>
             </div>
             <div class="stars" id="cStars">★ ★ ★</div>
@@ -172,7 +178,6 @@
         <div class="menu-mounts-far"></div>
         <div class="menu-mounts-near"></div>
         <div class="menu-vignette"></div>
-
         <div class="menu-hero"><img id="heroImg" src="https://i.ibb.co/nN47cnR9/Sayed.png" alt="Sayed"></div>
 
         <div class="menu-body">
@@ -181,16 +186,15 @@
             <div class="menu-sub">حـارس الحـدود · BORDER GUARD</div>
             <div class="menu-line"></div>
             <div class="menu-btns">
-                <button class="mbtn primary" id="mStart"><span>▶</span> CAMPAIGN — الحملة</button>
-                <button class="mbtn endless" id="mEndless"><span>∞</span> ENDLESS — مهمة مفتوحة</button>
-                <button class="mbtn" id="mContinue"><span>⏵</span> CONTINUE — متابعة</button>
-                <button class="mbtn" id="mMissions"><span>🗺</span> OPERATIONS — العمليات</button>
-                <button class="mbtn" id="mSettings"><span>⚙</span> SETTINGS — الإعدادات</button>
-                <button class="mbtn" id="mManual"><span>📖</span> MANUAL — الدليل</button>
+                <button class="mbtn primary" id="mStart"><span>▶</span> CAMPAIGN</button>
+                <button class="mbtn endless" id="mEndless"><span>∞</span> ENDLESS</button>
+                <button class="mbtn" id="mMissions"><span>🗺</span> OPERATIONS</button>
+                <button class="mbtn" id="mSettings"><span>⚙</span> SETTINGS</button>
+                <button class="mbtn" id="mManual"><span>📖</span> MANUAL</button>
             </div>
             <div class="menu-footer">
                 <span id="mHigh">HIGH SCORE: 0</span>
-                <span>v6.0 · BUILD 2024</span>
+                <span>v7.0</span>
             </div>
         </div>
     </div>
@@ -216,8 +220,6 @@
                     <div><span class="kbd">E</span> تفاعل</div>
                     <div><span class="kbd">ESC</span> إيقاف</div>
                 </div>
-                <h3>🎯 الأنماط</h3>
-                <p><b>CAMPAIGN:</b> 8 مراحل.<br><b>ENDLESS:</b> بلا نهاية.</p>
                 <h3>💎 الرموز</h3>
                 <p>🪙 عملة | 💖 روح (+صحة) | 🛡 درع كل 500</p>
             </div>
@@ -228,4 +230,4 @@
 
 <script src="script.js"></script>
 </body>
-                                                </html>
+    </html>
