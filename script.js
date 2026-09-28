@@ -1,9 +1,9 @@
 /* ============================================================
-   SAYED — BORDER GUARD v6.0 | Full Fix Edition
+   SAYED — BORDER GUARD v7.0 | Full Fix + Ninja Platformer
    ============================================================ */
 'use strict';
 
-/* ---------- CONFIG ---------- */
+/* ========== CONFIG ========== */
 const CFG = {
     W: 960, H: 540,
     GRAV: 1600,
@@ -18,8 +18,8 @@ const CFG = {
     STAM_REGEN: 26,
     INVULN_TIME: 1.6,
     KILL_Y: 850,
-    CHAR_SCALE: 1.55,
-    GROUND_Y: 500,          // real ground level
+    CHAR_SCALE: 1.65,
+    GROUND_Y: 480,   // Rock top surface
     ENEMY_SPEED: 55,
     ENEMY_RANGE: 90
 };
@@ -37,7 +37,7 @@ const SPRITES = {
     soul:   { url: 'https://i.ibb.co/n8sjtTq9/Soul-Heart.png',   cols: 1, rows: 1, fps: 1,  loop: true  }
 };
 
-/* ---------- SPRITE ---------- */
+/* ========== SPRITE ========== */
 class Sprite {
     constructor(cfg) {
         this.cfg = cfg;
@@ -77,7 +77,6 @@ class Sprite {
     }
 }
 
-/* ---------- ASSETS ---------- */
 const Assets = {
     sprites: {},
     async loadAll(cb) {
@@ -92,7 +91,7 @@ const Assets = {
     get(k) { return this.sprites[k]; }
 };
 
-/* ---------- AUDIO ---------- */
+/* ========== AUDIO ========== */
 const Audio = {
     ctx: null, master: null, music: null, sfx: null,
     vols: { master: .7, music: .35, sfx: .8 },
@@ -191,7 +190,7 @@ const Audio = {
     }
 };
 
-/* ---------- INPUT ---------- */
+/* ========== INPUT ========== */
 const Input = {
     keys: { left:false, right:false, jump:false, crouch:false, interact:false },
     prev: { left:false, right:false, jump:false, crouch:false, interact:false },
@@ -199,20 +198,15 @@ const Input = {
     map: {
         'ArrowLeft':'left','KeyA':'left',
         'ArrowRight':'right','KeyD':'right',
-        'ArrowUp':'jump','KeyW':'jump',
-        'Space':'jump',
+        'ArrowUp':'jump','KeyW':'jump','Space':'jump',
         'ArrowDown':'crouch','KeyS':'crouch',
         'KeyE':'interact','Enter':'interact'
     },
     init() {
-        // Keydown — prevent default ONLY for game keys (not F5/F12/etc.)
         window.addEventListener('keydown', e => {
             const a = this.map[e.code];
             if (a) { this.keys[a] = true; e.preventDefault(); }
-            else if (e.code === 'Escape') {
-                e.preventDefault();
-                Game.togglePause();
-            }
+            else if (e.code === 'Escape') { e.preventDefault(); Game.togglePause(); }
         }, { passive: false });
         window.addEventListener('keyup', e => {
             const a = this.map[e.code];
@@ -232,6 +226,7 @@ const Input = {
             el.addEventListener('mouseleave', off);
         };
         bind('btnLeft','left'); bind('btnRight','right');
+        bind('btnUp','jump'); bind('btnDown','crouch');
         bind('btnJump','jump'); bind('btnCrouch','crouch');
         bind('btnInteract','interact');
     },
@@ -242,7 +237,6 @@ const Input = {
         }
     },
     reset() {
-        // Fix: reset just-pressed when window changes
         for (const k in this.keys) {
             this.keys[k] = false;
             this.prev[k] = false;
@@ -251,19 +245,15 @@ const Input = {
     }
 };
 
-/* ---------- CAMERA ---------- */
+/* ========== CAMERA ========== */
 class Camera {
     constructor() { this.x = 0; this.sm = 0; this.st = 0; this.ox = 0; this.oy = 0; }
     follow(t, ww, dt) {
         const target = t.x + t.w / 2 - CFG.W * 0.38;
-        const clamp = Math.max(0, Math.min(target, ww - CFG.W));
-        // Faster smooth — 12 instead of 8
+        const clamp = Math.max(0, Math.min(target, Math.max(0, ww - CFG.W)));
         this.x += (clamp - this.x) * Math.min(1, 12 * dt);
     }
-    shake(m, t) {
-        this.sm = Math.max(this.sm, m);
-        this.st = Math.max(this.st, t);
-    }
+    shake(m, t) { this.sm = Math.max(this.sm, m); this.st = Math.max(this.st, t); }
     update(dt) {
         if (this.st > 0) {
             this.st -= dt;
@@ -275,7 +265,7 @@ class Camera {
     }
 }
 
-/* ---------- PARTICLES (with performance cap) ---------- */
+/* ========== PARTICLES ========== */
 class Particle {
     constructor(x, y, vx, vy, life, color, size, grav = 400) {
         this.x = x; this.y = y; this.vx = vx; this.vy = vy;
@@ -324,12 +314,12 @@ const Particles = {
     clear() { this.list.length = 0; }
 };
 
-/* ---------- PLAYER ---------- */
+/* ========== PLAYER ========== */
 class Player {
     constructor(x, y) {
         this.x = x; this.y = y;
         this.vx = 0; this.vy = 0;
-        this.w = 42; this.h = 60;
+        this.w = 44; this.h = 62;
         this.onGround = false;
         this.wasGround = false;
         this.faceRight = true;
@@ -341,13 +331,12 @@ class Player {
         this.animTimer = 0; this.animFrame = 0;
         this.stepT = 0; this.jumps = 0; this.maxJumps = 2;
         this.alive = true; this.finishLock = false;
-        this.sprintT = 0; this.trailT = 0;
         this.falling = false;
         this.fellAt = 0;
     }
     get bounds() {
         const hh = this.crouch ? this.h * .62 : this.h;
-        return { x: this.x + 6, y: this.y + (this.h - hh), w: this.w - 12, h: hh };
+        return { x: this.x + 8, y: this.y + (this.h - hh), w: this.w - 16, h: hh };
     }
     setAnim(n) {
         if (this.anim !== n) {
@@ -358,7 +347,6 @@ class Player {
 
     update(dt, platforms, worldW) {
         this.wasGround = this.onGround;
-        if (this.sprintT > 0) this.sprintT -= dt;
         this.crouch = Input.keys.crouch && this.onGround;
 
         let ix = 0;
@@ -366,8 +354,7 @@ class Player {
         if (Input.keys.right) ix += 1;
         if (ix !== 0 && !this.finishLock) this.faceRight = ix > 0;
 
-        const sprintMult = this.sprintT > 0 ? 1.4 : 1;
-        const maxS = (this.crouch ? CFG.MAX_RUN * CFG.CROUCH_MULT : CFG.MAX_RUN) * sprintMult;
+        const maxS = this.crouch ? CFG.MAX_RUN * CFG.CROUCH_MULT : CFG.MAX_RUN;
 
         if (ix !== 0 && !this.finishLock) {
             this.vx += ix * CFG.ACCEL * dt;
@@ -404,7 +391,7 @@ class Player {
         this.y += this.vy * dt;
         this.x = Math.max(0, Math.min(this.x, worldW - this.w));
 
-        // ============ COLLISION ============
+        // Collision
         this.onGround = false;
         const b = this.bounds;
         for (const p of platforms) {
@@ -413,8 +400,7 @@ class Player {
                 const oX = Math.min(b.x + b.w - p.x, p.x + p.w - b.x);
                 const oY = Math.min(b.y + b.h - p.y, p.y + p.h - b.y);
                 if (oY < oX) {
-                    if (this.vy > 0 && b.y + b.h - this.vy * dt <= p.y + 8) {
-                        // Landing on top
+                    if (this.vy > 0 && b.y + b.h - this.vy * dt <= p.y + 10) {
                         this.y = p.y - this.h;
                         if (!this.wasGround && this.vy > 200) {
                             Audio.play('land');
@@ -424,12 +410,10 @@ class Player {
                         this.onGround = true;
                         this.jumps = 0;
                     } else if (this.vy < 0 && b.y - this.vy * dt >= p.y + p.h - 8) {
-                        // Head bump
                         this.y = p.y + p.h;
                         this.vy = 0;
                     }
                 } else {
-                    // Horizontal collision
                     if (this.vx > 0) this.x = p.x - this.w;
                     else if (this.vx < 0) this.x = p.x + p.w;
                     this.vx = 0;
@@ -437,19 +421,15 @@ class Player {
             }
         }
 
-        // IMPORTANT FIX: No universal ground. Player falls into gaps.
-        // Only the platform collision keeps the player on ground.
-
         if (this.invuln > 0) this.invuln -= dt;
 
-        // Falling into pit — death
+        // Fall to death
         if (this.y > CFG.KILL_Y) {
             if (!this.falling) {
                 this.falling = true;
                 this.fellAt = performance.now();
             }
-            // After 0.5s of falling, take damage + respawn at checkpoint
-            if (performance.now() - this.fellAt > 500) {
+            if (performance.now() - this.fellAt > 400) {
                 this.falling = false;
                 this.hurt(true);
             }
@@ -457,7 +437,6 @@ class Player {
             this.falling = false;
         }
 
-        // Footstep sounds
         if (this.onGround && Math.abs(this.vx) > 60) {
             this.stepT -= dt;
             if (this.stepT <= 0) {
@@ -467,7 +446,6 @@ class Player {
             }
         }
 
-        // Anim
         if (!this.onGround) this.setAnim(this.vy < 0 ? 'jump' : 'fall');
         else if (this.crouch) this.setAnim('crouch');
         else if (Math.abs(this.vx) > 20) this.setAnim('run');
@@ -515,9 +493,9 @@ class Player {
         if (this.invuln > 0 && Math.floor(this.invuln * 16) % 2 === 0) ctx.globalAlpha = .5;
 
         // Shadow
-        ctx.fillStyle = 'rgba(0,0,0,.35)';
+        ctx.fillStyle = 'rgba(0,0,0,.4)';
         ctx.beginPath();
-        ctx.ellipse(sx + this.w/2, sy + this.h + 3, this.w * .6, 6, 0, 0, Math.PI * 2);
+        ctx.ellipse(sx + this.w/2, sy + this.h + 3, this.w * .6, 7, 0, 0, Math.PI * 2);
         ctx.fill();
 
         // Shield
@@ -545,27 +523,23 @@ class Player {
             }
             ctx.restore();
         } else {
-            this.fallback(ctx, sx, sy);
+            // Fallback
+            const hh = this.crouch ? this.h * .62 : this.h;
+            const yo = this.crouch ? this.h * .38 : 0;
+            ctx.fillStyle = '#c8b590';
+            ctx.fillRect(sx + 6, sy + yo + 16, this.w - 12, hh - 22);
+            ctx.fillStyle = '#5a6a4a';
+            ctx.fillRect(sx + 9, sy + yo + 20, this.w - 18, hh - 28);
+            ctx.fillStyle = '#d4a373';
+            ctx.beginPath(); ctx.arc(sx + this.w/2, sy + yo + 11, 12, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#8a7a5a';
+            ctx.beginPath(); ctx.arc(sx + this.w/2, sy + yo + 9, 13, Math.PI, 0); ctx.fill();
         }
         ctx.globalAlpha = 1;
     }
-    fallback(ctx, sx, sy) {
-        const hh = this.crouch ? this.h * .62 : this.h;
-        const yo = this.crouch ? this.h * .38 : 0;
-        ctx.fillStyle = '#c8b590';
-        ctx.fillRect(sx + 6, sy + yo + 16, this.w - 12, hh - 22);
-        ctx.fillStyle = '#5a6a4a';
-        ctx.fillRect(sx + 9, sy + yo + 20, this.w - 18, hh - 28);
-        ctx.fillStyle = '#d4a373';
-        ctx.beginPath(); ctx.arc(sx + this.w/2, sy + yo + 11, 12, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#8a7a5a';
-        ctx.beginPath(); ctx.arc(sx + this.w/2, sy + yo + 9, 13, Math.PI, 0); ctx.fill();
-        ctx.fillStyle = '#2a4a6a';
-        ctx.fillRect(sx - 3, sy + yo + 20, 9, 24);
-    }
 }
 
-/* ---------- COIN ---------- */
+/* ========== COIN ========== */
 class Coin {
     constructor(x, y, type) {
         this.x = x; this.y = y; this.type = type;
@@ -581,7 +555,6 @@ class Coin {
         const s = this.type === 'soul' ? Assets.get('soul') : Assets.get('coin');
         if (s && s.loaded) {
             ctx.save();
-            // Simpler shadow for performance
             ctx.shadowColor = this.type === 'soul' ? '#ff66aa' : '#ffdd00';
             ctx.shadowBlur = 10;
             ctx.translate(sx + 13, sy + 13);
@@ -596,7 +569,7 @@ class Coin {
     bounds() { return { x: this.x, y: this.y, w: this.w, h: this.h }; }
 }
 
-/* ---------- CHECKPOINT ---------- */
+/* ========== CHECKPOINT ========== */
 class Checkpoint {
     constructor(x, y) { this.x = x; this.y = y; this.on = false; this.pulse = 0; }
     update(dt) { this.pulse += dt * 4; }
@@ -622,7 +595,7 @@ class Checkpoint {
     bounds() { return { x: this.x - 6, y: this.y - 10, w: 38, h: 64 }; }
 }
 
-/* ---------- OBSTACLE ---------- */
+/* ========== OBSTACLE ========== */
 class Obstacle {
     constructor(x, y, w, h, type) {
         this.x = x; this.y = y; this.w = w; this.h = h; this.type = type;
@@ -658,12 +631,12 @@ class Obstacle {
     bounds() { return { x: this.x + 4, y: this.y + 4, w: this.w - 8, h: this.h - 8 }; }
 }
 
-/* ---------- ENEMY (new!) ---------- */
+/* ========== ENEMY ========== */
 class Enemy {
     constructor(x, y, range, speed) {
         this.startX = x;
         this.x = x; this.y = y;
-        this.w = 32; this.h = 48;
+        this.w = 34; this.h = 50;
         this.range = range || CFG.ENEMY_RANGE;
         this.speed = speed || CFG.ENEMY_SPEED;
         this.dir = 1;
@@ -678,27 +651,20 @@ class Enemy {
     draw(ctx, cam) {
         const sx = this.x - cam.x + cam.ox;
         const sy = this.y - cam.y + cam.oy;
-        // Shadow
         ctx.fillStyle = 'rgba(0,0,0,.3)';
         ctx.beginPath();
         ctx.ellipse(sx + this.w/2, sy + this.h + 2, this.w * .5, 4, 0, 0, Math.PI * 2);
         ctx.fill();
-        // Body
         ctx.fillStyle = '#3a3a2a';
         ctx.fillRect(sx + 4, sy + 12, this.w - 8, this.h - 20);
-        // Head
         ctx.fillStyle = '#8a6a4a';
-        ctx.beginPath(); ctx.arc(sx + this.w/2, sy + 9, 9, 0, Math.PI * 2); ctx.fill();
-        // Helmet
+        ctx.beginPath(); ctx.arc(sx + this.w/2, sy + 9, 10, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#2a2a1a';
-        ctx.beginPath(); ctx.arc(sx + this.w/2, sy + 7, 10, Math.PI, 0); ctx.fill();
-        // Eye
+        ctx.beginPath(); ctx.arc(sx + this.w/2, sy + 7, 11, Math.PI, 0); ctx.fill();
         ctx.fillStyle = '#ff4444';
         ctx.fillRect(sx + this.w/2 - 3, sy + 8, 6, 2);
-        // Vest
         ctx.fillStyle = '#5a3a2a';
         ctx.fillRect(sx + 7, sy + 18, this.w - 14, 12);
-        // Direction arrow
         ctx.fillStyle = '#ff8844';
         const ax = this.dir > 0 ? sx + this.w + 4 : sx - 4;
         ctx.beginPath();
@@ -710,7 +676,7 @@ class Enemy {
     bounds() { return { x: this.x + 4, y: this.y + 4, w: this.w - 8, h: this.h - 8 }; }
 }
 
-/* ---------- ROCK ---------- */
+/* ========== FALLING ROCK ========== */
 class Rock {
     constructor(x, y) {
         this.x = x; this.y = y; this.vy = 0;
@@ -766,35 +732,27 @@ class Rock {
     bounds() { return { x: this.x - this.size * .7, y: this.y - this.size * .7, w: this.size * 1.4, h: this.size * 1.4 }; }
 }
 
-/* ============ LEVEL DEFINITIONS ============ */
+/* ========== LEVELS ========== */
 const LEVELS = [
     { id:0, name:'بداية الدورية', op:'DESERT WATCH', grid:'GRID 22-R', time:'05:45', loc:'جبال البحر الأحمر',
-      obj:'الوصول إلى نقطة المراقبة', hint:'من جبال مصر إلى السودان.', ww:5500, theme:'night',
-      density:{platforms:35, coins:60, obstacles:12, enemies:3, checkpoints:4} },
+      obj:'الوصول إلى نقطة المراقبة', hint:'من جبال مصر إلى السودان.', ww:5500, theme:'night' },
     { id:1, name:'طريق الجبال', op:'MOUNTAIN PASS', grid:'GRID 24-Q', time:'07:20', loc:'المرتفعات الجبلية',
-      obj:'اعبر الطريق الجبلي', hint:'احذر من الانهيارات.', ww:6500, theme:'night',
-      density:{platforms:40, coins:70, obstacles:14, enemies:4, checkpoints:5} },
+      obj:'اعبر الطريق الجبلي', hint:'احذر من الانهيارات.', ww:6500, theme:'night' },
     { id:2, name:'الوادي الصخري', op:'ROCKY VALLEY', grid:'GRID 26-N', time:'09:15', loc:'الوادي الجاف',
-      obj:'اعبر الوادي واجمع العملات', hint:'الوادي وعر.', ww:7000, theme:'dawn',
-      density:{platforms:44, coins:80, obstacles:16, enemies:5, checkpoints:5} },
+      obj:'اعبر الوادي', hint:'الوادي وعر.', ww:7000, theme:'dawn' },
     { id:3, name:'العاصفة الرملية', op:'SANDSTORM', grid:'GRID 28-S', time:'11:40', loc:'صحراء مفتوحة',
-      obj:'الوصول للمنطقة الآمنة', hint:'احتمِ! العاصفة قادمة.', ww:6500, theme:'storm', storm:true,
-      density:{platforms:40, coins:70, obstacles:18, enemies:5, checkpoints:5} },
+      obj:'الوصول للمنطقة الآمنة', hint:'احتمِ!', ww:6500, theme:'storm', storm:true },
     { id:4, name:'الكهف الليلي', op:'CAVE PATROL', grid:'GRID 30-K', time:'14:20', loc:'الكهف الجبلي',
-      obj:'اعثر على حقيبة الإسعافات', hint:'الظلام دامس.', ww:6000, theme:'cave',
-      density:{platforms:38, coins:65, obstacles:14, enemies:5, checkpoints:4} },
+      obj:'اعثر على حقيبة الإسعافات', hint:'الظلام دامس.', ww:6000, theme:'cave' },
     { id:5, name:'إنقاذ الجندي', op:'RESCUE OP', grid:'GRID 32-R', time:'16:55', loc:'منطقة الدوريات',
-      obj:'ساعد الجندي العالق', hint:'جندي يحتاج مساعدتك.', ww:6800, theme:'dusk',
-      density:{platforms:42, coins:75, obstacles:15, enemies:6, checkpoints:5} },
+      obj:'ساعد الجندي العالق', hint:'أسرع!', ww:6800, theme:'dusk' },
     { id:6, name:'الطريق الليلي', op:'NIGHT RUN', grid:'GRID 34-N', time:'21:30', loc:'طريق العودة',
-      obj:'الوصول قبل الفجر', hint:'الليل طويل.', ww:7200, theme:'night',
-      density:{platforms:46, coins:85, obstacles:16, enemies:7, checkpoints:6} },
+      obj:'الوصول قبل الفجر', hint:'الليل طويل.', ww:7200, theme:'night' },
     { id:7, name:'العودة النهائية', op:'FINAL RETURN', grid:'GRID 36-R', time:'04:50', loc:'نقطة الحراسة',
-      obj:'العودة إلى نقطة الحراسة', hint:'آخر مرحلة.', ww:7500, theme:'dawn',
-      density:{platforms:50, coins:90, obstacles:18, enemies:8, checkpoints:6} }
+      obj:'العودة إلى نقطة الحراسة', hint:'آخر مرحلة.', ww:7500, theme:'dawn' }
 ];
 
-/* ============ LEVEL BUILDER ============ */
+/* ========== LEVEL BUILDER ========== */
 function buildLevel(L) {
     const platforms = [];
     const coins = [];
@@ -802,41 +760,31 @@ function buildLevel(L) {
     const checkpoints = [];
     const enemies = [];
     const W = L.ww;
-    const GY = CFG.GROUND_Y;  // real ground level y
+    const GY = CFG.GROUND_Y;
 
-    // Build segments with gaps
-    const segmentW = 250;
-    const totalSegments = Math.floor(W / segmentW);
-    const checkpointInterval = Math.floor(totalSegments / L.density.checkpoints);
-    const enemyInterval = Math.floor(totalSegments / L.density.enemies);
-    const obstacleInterval = Math.floor(totalSegments / L.density.obstacles);
-
-    let segmentIdx = 0;
     let x = 0;
-    let gapCount = 0;
+    let segIdx = 0;
 
     while (x < W - 300) {
-        // Decide segment size
-        const segW = 220 + Math.floor(Math.random() * 180);
+        const segW = 240 + Math.floor(Math.random() * 160);
 
-        // Create gap every 5-8 segments (but not in first 3)
-        const makeGap = (segmentIdx > 3 && gapCount < 15 && Math.random() < 0.18);
+        // Gap every 5-8 segments
+        const makeGap = (segIdx > 3 && Math.random() < 0.15);
         if (makeGap) {
-            gapCount++;
-            x += 90 + Math.floor(Math.random() * 50);
-            segmentIdx++;
+            x += 100 + Math.floor(Math.random() * 50);
+            segIdx++;
             continue;
         }
 
-        // Ground platform
+        // Main ground platform
         platforms.push({ x, y: GY, w: segW, h: 40 });
 
-        // Elevated platforms (2 per segment max)
+        // Elevated platforms
         const eCount = 1 + Math.floor(Math.random() * 2);
         for (let i = 0; i < eCount; i++) {
-            const eH = 90 + Math.floor(Math.random() * 120);
+            const eH = 90 + Math.floor(Math.random() * 110);
             const eW = 90 + Math.floor(Math.random() * 100);
-            const eX = x + 30 + Math.floor(Math.random() * (segW - eW - 60));
+            const eX = x + 40 + Math.floor(Math.random() * (segW - eW - 80));
             platforms.push({ x: eX, y: GY - eH, w: eW, h: 18 });
         }
 
@@ -845,58 +793,52 @@ function buildLevel(L) {
         for (let i = 0; i < coinsN; i++) {
             const t = Math.random() < 0.12 ? 'soul' : 'coin';
             coins.push({
-                x: x + 40 + i * 50 + Math.random() * 30,
-                y: GY - 40 - Math.random() * 60,
+                x: x + 50 + i * 55 + Math.random() * 30,
+                y: GY - 50 - Math.random() * 60,
                 type: t
             });
         }
 
-        // Obstacles (only on ground of certain segments)
-        if (segmentIdx % Math.max(1, Math.floor(totalSegments / L.density.obstacles)) === 0
-            && segmentIdx > 2 && segmentIdx < totalSegments - 2) {
+        // Obstacle every ~4 segments
+        if (segIdx > 2 && segIdx % 4 === 0 && segIdx < Math.floor(W / 300) - 2) {
             const oX = x + 60 + Math.floor(Math.random() * (segW - 100));
             obstacles.push({
-                x: oX,
-                y: GY - 22,
-                w: 22, h: 22,
+                x: oX, y: GY - 22, w: 22, h: 22,
                 type: Math.random() < .6 ? 'rock' : 'cactus'
             });
         }
 
-        // Checkpoint
-        if (segmentIdx > 0 && segmentIdx % Math.max(4, checkpointInterval) === 0
-            && checkpoints.length < L.density.checkpoints) {
+        // Checkpoint every 6 segments
+        if (segIdx > 0 && segIdx % 6 === 0 && checkpoints.length < 6) {
             checkpoints.push({ x: x + 40, y: GY - 20 });
         }
 
-        // Enemy
-        if (segmentIdx > 4 && segmentIdx % Math.max(4, enemyInterval) === 0
-            && enemies.length < L.density.enemies) {
+        // Enemy every 5 segments
+        if (segIdx > 4 && segIdx % 5 === 0 && enemies.length < 6) {
             enemies.push({
-                x: x + 80,
-                y: GY - 48,
+                x: x + 80, y: GY - 50,
                 range: 70 + Math.random() * 50,
                 speed: 50 + Math.random() * 25
             });
         }
 
         x += segW + 20;
-        segmentIdx++;
+        segIdx++;
     }
 
-    // Final ground segment for finish
+    // Final segment
     platforms.push({ x: W - 500, y: GY, w: 500, h: 40 });
 
     return { platforms, coins, obstacles, checkpoints, enemies };
 }
 
-/* ============ LEVEL RUNTIME ============ */
+/* ========== LEVEL RUNTIME ========== */
 const Level = {
     data: null,
     platforms: [], coins: [], obstacles: [], checkpoints: [], enemies: [],
     rocks: [],
     checkpoint: { x: 60, y: 400 },
-    startX: 60, startY: CFG.GROUND_Y - 60,
+    startX: 60, startY: CFG.GROUND_Y - 62,
     ww: 5000,
     time: 0, stormT: 0, stormI: 0,
     rockTimer: 0,
@@ -915,34 +857,29 @@ const Level = {
         this.enemies = built.enemies.map(e => new Enemy(e.x, e.y, e.range, e.speed));
         this.rocks = [];
         this.startX = 60;
-        this.startY = CFG.GROUND_Y - 60;
+        this.startY = CFG.GROUND_Y - 62;
         this.checkpoint = { x: 60, y: this.startY };
         this.time = 0; this.stormT = 0; this.stormI = 0;
-        this.rockTimer = 6 + Math.random() * 6;
+        this.rockTimer = 8 + Math.random() * 6;
         this.endless = false; this.chunkId = 0;
         Particles.clear();
     },
 
     loadEndless() {
         this.data = {
-            id: 99, name: 'دورية مفتوحة', op: 'ENDLESS PATROL', grid: 'GRID ∞',
-            time: '∞', loc: 'الحدود المصرية السودانية', theme: 'night',
-            obj: 'اصمد أطول وقت ممكن', hint: 'ENDLESS — لا نهاية.',
-            ww: 100000
+            id: 99, name: 'دورية مفتوحة', op: 'ENDLESS', grid: 'GRID ∞',
+            time: '∞', loc: 'الحدود', theme: 'night',
+            obj: 'اصمد أطول وقت', hint: 'ENDLESS — لا نهاية.', ww: 100000
         };
         this.ww = 100000;
         this.finishX = Infinity;
-        this.platforms = [];
-        this.coins = [];
-        this.obstacles = [];
-        this.checkpoints = [];
-        this.enemies = [];
-        this.rocks = [];
+        this.platforms = []; this.coins = []; this.obstacles = [];
+        this.checkpoints = []; this.enemies = []; this.rocks = [];
         this.startX = 60;
-        this.startY = CFG.GROUND_Y - 60;
+        this.startY = CFG.GROUND_Y - 62;
         this.checkpoint = { x: 60, y: this.startY };
         this.time = 0; this.stormT = 0; this.stormI = 0;
-        this.rockTimer = 8;
+        this.rockTimer = 10;
         this.endless = true; this.chunkId = 0;
         this.genChunk();
         Particles.clear();
@@ -952,57 +889,39 @@ const Level = {
         const cx = this.chunkId * 1600;
         const GY = CFG.GROUND_Y;
         let x = cx;
-        const chunkSegs = 5;
 
-        for (let i = 0; i < chunkSegs; i++) {
-            const segW = 220 + Math.floor(Math.random() * 120);
-
-            // Ground platform
+        for (let i = 0; i < 5; i++) {
+            const segW = 240 + Math.floor(Math.random() * 120);
             this.platforms.push({ x, y: GY, w: segW, h: 40 });
-
-            // Elevated
             if (Math.random() < 0.5) {
-                const eH = 100 + Math.floor(Math.random() * 100);
                 this.platforms.push({
-                    x: x + 30,
-                    y: GY - eH,
+                    x: x + 40, y: GY - 130 - Math.random() * 60,
                     w: 90, h: 18
                 });
             }
-
-            // Coins
             for (let k = 0; k < 3; k++) {
                 this.coins.push(new Coin(
-                    x + 40 + k * 60,
-                    GY - 40 - Math.random() * 50,
+                    x + 50 + k * 60,
+                    GY - 50 - Math.random() * 50,
                     Math.random() < 0.12 ? 'soul' : 'coin'
                 ));
             }
-
-            // Obstacles
             if (i > 0 && Math.random() < 0.5) {
                 this.obstacles.push(new Obstacle(
-                    x + segW * .5,
-                    GY - 22,
-                    22, 22,
+                    x + segW * .5, GY - 22, 22, 22,
                     Math.random() < .5 ? 'rock' : 'cactus'
                 ));
             }
-
-            // Enemy
             if (i > 1 && Math.random() < 0.4) {
                 this.enemies.push(new Enemy(
-                    x + 60, GY - 48,
-                    70 + Math.random() * 40,
-                    50 + Math.random() * 25
+                    x + 80, GY - 50,
+                    70 + Math.random() * 40, 50 + Math.random() * 25
                 ));
             }
-
             x += segW + 20;
         }
 
-        // Checkpoint at chunk start
-        this.checkpoints.push(new Checkpoint(cx + 50, GY - 20));
+        this.checkpoints.push(new Checkpoint(cx + 60, GY - 20));
         this.chunkId++;
     },
 
@@ -1023,10 +942,9 @@ const Level = {
         }
         if (this.endless) this.ensureChunk(player.x);
 
-        // Falling rocks — spawn above player's nearby area (logical)
         this.rockTimer -= dt;
         if (this.rockTimer <= 0) {
-            this.rockTimer = 12 + Math.random() * 10;
+            this.rockTimer = 14 + Math.random() * 10;
             const baseX = player.x + CFG.W * .35;
             const n = 2 + Math.floor(Math.random() * 3);
             for (let i = 0; i < n; i++) {
@@ -1035,7 +953,7 @@ const Level = {
                     player.y - 450
                 ));
             }
-            UI.radio('⚠ انهيار صخري! احتمِ!', 2200);
+            UI.radio('⚠ انهيار صخري!', 2200);
             if (Game.cam) Game.cam.shake(5, .5);
         }
         for (let i = this.rocks.length - 1; i >= 0; i--) {
@@ -1044,24 +962,51 @@ const Level = {
         }
     },
 
+    /* ============ DRAWING — MAIN FIX ============ */
     draw(ctx, cam) {
-        // Platforms
-        for (const p of this.platforms) {
+        // ============ PLATFORMS — visible rocky ground ============
+        for (const p of platformsLoop.call(this, cam)) {
             const sx = p.x - cam.x + cam.ox;
             const sy = p.y - cam.y + cam.oy;
             if (sx + p.w < -100 || sx > CFG.W + 100) continue;
-            // Main body
-            ctx.fillStyle = '#2a2820';
+
+            // Base rock (light brown-grey, VISIBLE)
+            ctx.fillStyle = '#6a5a4a';
             ctx.fillRect(sx, sy, p.w, p.h);
-            // Rocky top gradient (cached)
-            const g = ctx.createLinearGradient(0, sy, 0, sy + 10);
-            g.addColorStop(0, '#5a5548');
-            g.addColorStop(1, '#3a3528');
-            ctx.fillStyle = g;
-            ctx.fillRect(sx, sy, p.w, 10);
-            // Bottom shadow
-            ctx.fillStyle = 'rgba(0,0,0,.4)';
-            ctx.fillRect(sx, sy + p.h, p.w, 5);
+
+            // Top surface (lighter — rocky highlight)
+            const topGrad = ctx.createLinearGradient(0, sy, 0, sy + 12);
+            topGrad.addColorStop(0, '#a89078');
+            topGrad.addColorStop(0.5, '#8a7560');
+            topGrad.addColorStop(1, '#6a5a4a');
+            ctx.fillStyle = topGrad;
+            ctx.fillRect(sx, sy, p.w, 12);
+
+            // Stone texture (small bumps along the top)
+            ctx.fillStyle = '#7a6a58';
+            for (let cx = 0; cx < p.w; cx += 22) {
+                const bump = ((cx * 13) % 7) - 3;
+                ctx.fillRect(sx + cx, sy + 12 + bump, 8, 4);
+            }
+
+            // Cracks pattern
+            ctx.strokeStyle = 'rgba(40,30,25,.5)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let cx = 0; cx < p.w; cx += 40) {
+                ctx.moveTo(sx + cx + 10, sy + 12);
+                ctx.lineTo(sx + cx + 15, sy + 25);
+                ctx.lineTo(sx + cx + 8, sy + 35);
+            }
+            ctx.stroke();
+
+            // Bottom shadow (depth)
+            ctx.fillStyle = 'rgba(0,0,0,.55)';
+            ctx.fillRect(sx, sy + p.h - 4, p.w, 6);
+
+            // Bottom dark edge
+            ctx.fillStyle = '#3a2a20';
+            ctx.fillRect(sx, sy + p.h, p.w, 3);
         }
 
         for (const o of this.obstacles) o.draw(ctx, cam);
@@ -1070,108 +1015,128 @@ const Level = {
         for (const c of this.coins) c.draw(ctx, cam);
         for (const r of this.rocks) r.draw(ctx, cam);
 
-        // ============ FINISH FLAG (visible!) ============
+        // ============ FINISH FLAG ============
         if (!this.endless) {
             const fx = this.finishX - cam.x + cam.ox;
-            const fy = CFG.H - 40;
-
-            // Pole
-            ctx.fillStyle = '#8a8a8a';
-            ctx.fillRect(fx, fy - 140, 6, 140);
-            // Flag
-            ctx.fillStyle = '#44dd44';
-            ctx.beginPath();
-            ctx.moveTo(fx + 6, fy - 140);
-            ctx.lineTo(fx + 55, fy - 125);
-            ctx.lineTo(fx + 6, fy - 110);
-            ctx.closePath();
-            ctx.fill();
-            // Star
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 24px Tahoma';
-            ctx.textAlign = 'center';
-            ctx.fillText('★', fx + 22, fy - 118);
-            // Base
-            ctx.fillStyle = '#5a4a3a';
-            ctx.fillRect(fx - 10, fy - 4, 26, 8);
-            // Glow
-            const t = performance.now() * 0.003;
-            ctx.globalAlpha = .5 + Math.sin(t) * .3;
-            ctx.strokeStyle = '#44dd44';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(fx - 20, fy - 160, 100, 170);
-            ctx.globalAlpha = 1;
-            // Label
-            ctx.fillStyle = '#44dd44';
-            ctx.font = 'bold 14px Tahoma';
-            ctx.fillText('EXTRACT', fx + 25, fy - 155);
+            const fy = CFG.GROUND_Y;
+            if (fx > -200 && fx < CFG.W + 200) {
+                // Pole
+                ctx.fillStyle = '#8a8a8a';
+                ctx.fillRect(fx, fy - 160, 6, 160);
+                // Flag
+                ctx.fillStyle = '#44dd44';
+                ctx.beginPath();
+                ctx.moveTo(fx + 6, fy - 160);
+                ctx.lineTo(fx + 60, fy - 145);
+                ctx.lineTo(fx + 6, fy - 130);
+                ctx.closePath(); ctx.fill();
+                // Star
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 24px Tahoma';
+                ctx.textAlign = 'center';
+                ctx.fillText('★', fx + 24, fy - 138);
+                // Base rocks
+                ctx.fillStyle = '#6a5a4a';
+                ctx.fillRect(fx - 20, fy - 8, 46, 12);
+                ctx.fillStyle = '#a89078';
+                ctx.fillRect(fx - 20, fy - 8, 46, 4);
+                // Glow
+                const t = performance.now() * 0.003;
+                ctx.globalAlpha = .5 + Math.sin(t) * .3;
+                ctx.strokeStyle = '#44dd44';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(fx - 25, fy - 180, 110, 190);
+                ctx.globalAlpha = 1;
+                // Label
+                ctx.fillStyle = '#44dd44';
+                ctx.font = 'bold 14px Tahoma';
+                ctx.fillText('EXTRACT', fx + 25, fy - 175);
+            }
         }
     }
 };
 
-/* ============ BACKGROUND (cached for performance) ============ */
+/* Helper to iterate platforms with culling */
+function* platformsLoop(cam) {
+    for (const p of this.platforms) {
+        const sx = p.x - cam.x + cam.ox;
+        if (sx + p.w < -100 || sx > CFG.W + 100) continue;
+        yield p;
+    }
+}
+
+/* ========== BACKGROUND ========== */
 const Bg = {
     cache: {},
     themes: {
-        night:  { top: '#020210', mid: '#0a0a2a', low: '#151532', bot: '#1a1020', mount1: '#0a0a1a', mount2: '#080814', mount3: '#030308' },
-        dawn:   { top: '#3a2050', mid: '#8a4060', low: '#d47050', bot: '#3a1a20', mount1: '#1a1020', mount2: '#100818', mount3: '#050308' },
-        dusk:   { top: '#2a1030', mid: '#6a3040', low: '#a06040', bot: '#2a1810', mount1: '#1a0a15', mount2: '#100508', mount3: '#050208' },
-        storm:  { top: '#8a6030', mid: '#a08050', low: '#d4a373', bot: '#8a6a40', mount1: '#4a3018', mount2: '#3a2008', mount3: '#2a1008' },
-        cave:   { top: '#0a0510', mid: '#100820', low: '#1a1030', bot: '#080410', mount1: '#0a0518', mount2: '#050210', mount3: '#020008' }
+        night:  { top:'#020210', mid:'#0a0a2a', low:'#151532', bot:'#1a1020',
+                  mount1:'#0a0a1a', mount2:'#050510', mount3:'#020208' },
+        dawn:   { top:'#2a1540', mid:'#6a3050', low:'#a05050', bot:'#3a1818',
+                  mount1:'#1a0a20', mount2:'#100510', mount3:'#050208' },
+        dusk:   { top:'#2a1030', mid:'#6a3040', low:'#a06040', bot:'#2a1810',
+                  mount1:'#1a0a15', mount2:'#100508', mount3:'#050208' },
+        storm:  { top:'#6a4a28', mid:'#8a6848', low:'#b88a60', bot:'#6a4a30',
+                  mount1:'#3a2818', mount2:'#2a1808', mount3:'#180a04' },
+        cave:   { top:'#050208', mid:'#0a0515', low:'#150828', bot:'#050208',
+                  mount1:'#0a0518', mount2:'#050210', mount3:'#020008' }
     },
     draw(ctx, cam, data) {
-        const th = this.themes[data.theme || 'night'];
         const key = data.theme || 'night';
+        const th = this.themes[key];
 
-        // Sky gradient (cache)
-        if (!this.cache[key]) {
+        // Sky gradient (cached)
+        const gKey = 'sky_' + key;
+        if (!this.cache[gKey]) {
             const g = ctx.createLinearGradient(0, 0, 0, CFG.H);
             g.addColorStop(0, th.top);
             g.addColorStop(.4, th.mid);
             g.addColorStop(.75, th.low);
             g.addColorStop(1, th.bot);
-            this.cache[key] = g;
+            this.cache[gKey] = g;
         }
-        ctx.fillStyle = this.cache[key];
+        ctx.fillStyle = this.cache[gKey];
         ctx.fillRect(0, 0, CFG.W, CFG.H);
 
-        // Stars (only for night/dusk themes)
-        if (data.theme === 'night' || data.theme === 'dusk' || data.theme === 'dawn') {
-            for (let i = 0; i < 50; i++) {
+        // Stars
+        if (key === 'night' || key === 'dusk' || key === 'dawn') {
+            for (let i = 0; i < 55; i++) {
                 const sx = (i * 137 + 30) % CFG.W;
                 const sy = (i * 71) % 250;
-                ctx.globalAlpha = 0.5 + Math.abs(Math.sin(cam.x * .001 + i * .7)) * .5;
+                ctx.globalAlpha = 0.4 + Math.abs(Math.sin(cam.x * .001 + i * .7)) * .6;
                 ctx.fillStyle = '#fff';
                 ctx.fillRect(sx, sy, 1.5, 1.5);
             }
             ctx.globalAlpha = 1;
         }
 
-        // Moon (or sun for dawn/dusk)
+        // Moon / Sun
         const mx = CFG.W * .78, my = 110;
-        if (data.theme === 'night' || data.theme === 'cave') {
+        if (key === 'night' || key === 'cave') {
             ctx.fillStyle = 'rgba(255,240,200,.15)';
             ctx.beginPath(); ctx.arc(mx, my, 70, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = '#f8e8b8';
             ctx.beginPath(); ctx.arc(mx, my, 32, 0, Math.PI * 2); ctx.fill();
-        } else if (data.theme === 'dawn' || data.theme === 'dusk') {
+            ctx.fillStyle = 'rgba(220,200,160,.7)';
+            ctx.beginPath(); ctx.arc(mx - 8, my - 4, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(mx + 10, my + 8, 4, 0, Math.PI * 2); ctx.fill();
+        } else if (key === 'dawn' || key === 'dusk') {
             ctx.fillStyle = 'rgba(255,200,120,.35)';
             ctx.beginPath(); ctx.arc(mx, my, 80, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = '#ffcc66';
             ctx.beginPath(); ctx.arc(mx, my, 42, 0, Math.PI * 2); ctx.fill();
-        } else if (data.theme === 'storm') {
+        } else if (key === 'storm') {
             ctx.fillStyle = 'rgba(255,220,150,.25)';
             ctx.beginPath(); ctx.arc(mx, 100, 60, 0, Math.PI * 2); ctx.fill();
         }
 
         // Mountain layers
-        this.mountains(ctx, cam, .08, 200, th.mount1, 60, 130);
-        this.mountains(ctx, cam, .20, 280, th.mount2, 80, 160);
-        this.mountains(ctx, cam, .42, 360, th.mount3, 100, 200);
+        this.mountains(ctx, cam, .08, 210, th.mount1, 60, 130);
+        this.mountains(ctx, cam, .20, 290, th.mount2, 80, 160);
+        this.mountains(ctx, cam, .42, 370, th.mount3, 100, 200);
 
         // Ground band
-        ctx.fillStyle = 'rgba(5,5,15,.6)';
-        ctx.fillRect(0, CFG.H - 45, CFG.W, 45);
+        ctx.fillStyle = 'rgba(5,5,15,.5)';
+        ctx.fillRect(0, CFG.H - 42, CFG.W, 42);
     },
     mountains(ctx, cam, px, baseY, color, amp, spread) {
         const off = (cam.x * px) % spread;
@@ -1180,7 +1145,6 @@ const Bg = {
         ctx.moveTo(-spread, CFG.H);
         for (let i = -spread; i <= CFG.W + spread * 2; i += 30) {
             const wx = i + off;
-            // Smoother mountains — lower frequencies
             const y = baseY + Math.sin(wx * .0015) * amp * .6 + Math.cos(wx * .0035) * amp * .35;
             ctx.lineTo(i, y);
         }
@@ -1191,7 +1155,6 @@ const Bg = {
         if (i <= 0) return;
         ctx.fillStyle = `rgba(140,110,70,${i * .25})`;
         ctx.fillRect(0, 0, CFG.W, CFG.H);
-        // Less lines = more perf
         for (let k = 0; k < 35; k++) {
             const sx = ((k * 89 + t * 400 * i) % (CFG.W + 200)) - 100;
             const sy = (k * 53) % CFG.H;
@@ -1206,15 +1169,15 @@ const Bg = {
     darkness(ctx, player, cam) {
         const px = player ? player.x - cam.x + cam.ox : CFG.W / 2;
         const py = player ? player.y - cam.y + cam.oy : CFG.H / 2;
-        const v = ctx.createRadialGradient(px, py, 120, px, py, 500);
-        v.addColorStop(0, 'rgba(0,0,20,.15)');
-        v.addColorStop(1, 'rgba(0,0,20,.75)');
+        const v = ctx.createRadialGradient(px, py, 130, px, py, 520);
+        v.addColorStop(0, 'rgba(0,0,20,.10)');
+        v.addColorStop(1, 'rgba(0,0,20,.70)');
         ctx.fillStyle = v;
         ctx.fillRect(0, 0, CFG.W, CFG.H);
     }
 };
 
-/* ============ UI ============ */
+/* ========== UI ========== */
 const UI = {
     els: {},
     radioTO: null,
@@ -1262,35 +1225,33 @@ const UI = {
             this.els.hudCombo.classList.add('hidden');
         }
 
-        // ============ RADAR (working!) ============
-        const radarSize = 56;
-        const worldW = lv.ww;
+        // Radar — player
+        const rs = 56;
         const viewStart = Game.cam.x;
         const viewEnd = viewStart + CFG.W;
 
-        // Player position on radar
         if (this.els.radarPlayer) {
             const relX = (p.x - viewStart) / CFG.W;
-            const relY = (p.y - 200) / 400;  // rough vertical
-            const rx = Math.max(5, Math.min(radarSize - 5, relX * radarSize));
-            const ry = Math.max(5, Math.min(radarSize - 5, relY * radarSize));
+            const relY = (p.y - 200) / 400;
+            const rx = Math.max(6, Math.min(rs - 6, relX * rs));
+            const ry = Math.max(6, Math.min(rs - 6, relY * rs));
             this.els.radarPlayer.style.left = rx + 'px';
             this.els.radarPlayer.style.top = ry + 'px';
         }
 
-        // Nearest 2 enemies on radar
+        // Radar — nearest 2 enemies
         if (lv.enemies && lv.enemies.length > 0) {
             const visible = lv.enemies
                 .filter(e => e.x > viewStart - 200 && e.x < viewEnd + 200)
                 .slice(0, 2);
-
             for (let i = 0; i < 2; i++) {
                 const el = i === 0 ? this.els.radarEnemy1 : this.els.radarEnemy2;
+                if (!el) continue;
                 if (visible[i]) {
                     const relX = (visible[i].x - viewStart) / CFG.W;
                     const relY = (visible[i].y - 200) / 400;
-                    el.style.left = Math.max(5, Math.min(radarSize - 5, relX * radarSize)) + 'px';
-                    el.style.top = Math.max(5, Math.min(radarSize - 5, relY * radarSize)) + 'px';
+                    el.style.left = Math.max(6, Math.min(rs - 6, relX * rs)) + 'px';
+                    el.style.top = Math.max(6, Math.min(rs - 6, relY * rs)) + 'px';
                     el.style.display = 'block';
                 } else {
                     el.style.display = 'none';
@@ -1310,6 +1271,7 @@ const UI = {
         clearTimeout(this.radioTO);
         this.radioTO = setTimeout(() => this.els.radio.classList.add('hidden'), dur);
     },
+
     brief(data, idx) {
         this.els.briefNum.textContent = `MISSION ${String(idx + 1).padStart(2, '0')}`;
         this.els.briefTitle.textContent = data.name;
@@ -1361,7 +1323,7 @@ const UI = {
     }
 };
 
-/* ============ GAME ============ */
+/* ========== GAME ========== */
 const Game = {
     state: S.LOADING,
     score: 0, combo: 1, coins: 0,
@@ -1381,7 +1343,7 @@ const Game = {
         Input.init();
 
         try {
-            const save = JSON.parse(localStorage.getItem('sayed_save_v6'));
+            const save = JSON.parse(localStorage.getItem('sayed_save_v7'));
             if (save) {
                 this.unlocked = save.unlocked || 1;
                 this.high = save.high || 0;
@@ -1402,10 +1364,6 @@ const Game = {
         };
         bind('mStart', () => this.startLevel(0));
         bind('mEndless', () => this.startEndless());
-        bind('mContinue', () => {
-            const lvl = Math.max(0, Math.min(this.unlocked - 1, LEVELS.length - 1));
-            this.startLevel(lvl);
-        });
         bind('mMissions', () => UI.missions(this.unlocked, this.currentLevel));
         bind('mSettings', () => document.getElementById('settings').classList.remove('hidden'));
         bind('mManual', () => document.getElementById('manual').classList.remove('hidden'));
@@ -1456,9 +1414,9 @@ const Game = {
         this.currentLevel = -1;
         document.getElementById('menu').classList.add('hidden');
         UI.brief({
-            name: 'دورية مفتوحة', loc: 'الحدود المصرية السودانية',
-            time: '∞', obj: 'اصمد أطول وقت ممكن',
-            hint: 'ENDLESS MODE — لا نهاية. كل 1600م تُولَّد أرض جديدة.'
+            name: 'دورية مفتوحة', loc: 'الحدود',
+            time: '∞', obj: 'اصمد أطول وقت',
+            hint: 'ENDLESS — لا نهاية.'
         }, 0);
         this.state = S.BRIEF;
     },
@@ -1469,7 +1427,7 @@ const Game = {
         this.ctx.imageSmoothingEnabled = true;
         this.ctx.imageSmoothingQuality = 'high';
 
-        this.player = new Player(60, CFG.GROUND_Y - 60);
+        this.player = new Player(60, CFG.GROUND_Y - 62);
         this.cam = new Camera();
 
         if (this.endless) Level.loadEndless();
@@ -1493,7 +1451,7 @@ const Game = {
             document.getElementById(id).classList.add('hidden'));
 
         if (Audio.ctx) Audio.startMusic();
-        setTimeout(() => UI.radio('سيّد، ابدأ الدورية. جبال مصر والسودان.', 4000), 800);
+        setTimeout(() => UI.radio('سيّد، ابدأ الدورية.', 4000), 800);
     },
 
     restart() {
@@ -1501,13 +1459,11 @@ const Game = {
         document.getElementById('gameover').classList.add('hidden');
         this.beginPlay();
     },
-
     nextLevel() {
         document.getElementById('complete').classList.add('hidden');
         if (this.currentLevel + 1 >= LEVELS.length) { this.toMenu(); return; }
         this.startLevel(this.currentLevel + 1);
     },
-
     toMenu() {
         this.state = S.MENU;
         this.endless = false;
@@ -1520,7 +1476,6 @@ const Game = {
         document.getElementById('menu').classList.remove('hidden');
         if (UI.els.mHigh) UI.els.mHigh.textContent = 'HIGH SCORE: ' + this.high;
     },
-
     togglePause() {
         if (this.state === S.PLAY) {
             this.state = S.PAUSE;
@@ -1530,7 +1485,6 @@ const Game = {
             document.getElementById('pause').classList.add('hidden');
         }
     },
-
     fail() {
         this.state = S.FAIL;
         Audio.stopMusic();
@@ -1540,7 +1494,6 @@ const Game = {
         UI.fail(this.score, this.player ? Math.round(this.player.x / 10) : 0);
         document.getElementById('mc').classList.add('hidden');
     },
-
     complete() {
         this.state = S.DONE;
         Audio.stopMusic();
@@ -1557,10 +1510,9 @@ const Game = {
         });
         document.getElementById('mc').classList.add('hidden');
     },
-
     save() {
         try {
-            localStorage.setItem('sayed_save_v6', JSON.stringify({
+            localStorage.setItem('sayed_save_v7', JSON.stringify({
                 unlocked: this.unlocked, high: this.high, currentLevel: this.currentLevel
             }));
         } catch(e) {}
@@ -1570,7 +1522,6 @@ const Game = {
         const dt = Math.min((t - this.lastT) / 1000, .05);
         this.lastT = t;
         if (!this.ctx) { requestAnimationFrame(tt => this.loop(tt)); return; }
-
         if (this.state === S.PLAY) {
             this.update(dt);
             this.render();
@@ -1591,7 +1542,6 @@ const Game = {
         this.cam.update(dt);
         Particles.update(dt);
 
-        // Coins
         for (const c of Level.coins) {
             if (c.taken) continue;
             const cb = c.bounds(), pb = p.bounds;
@@ -1612,7 +1562,7 @@ const Game = {
                     Audio.play('soul');
                     p.heal(2);
                     p.sp = Math.min(p.maxSp, p.sp + 50);
-                    UI.radio('💖 روح مُطهرة! +صحة وطاقة', 2500);
+                    UI.radio('💖 روح! +صحة وطاقة', 2500);
                 } else {
                     Audio.play('pick');
                     if (this.combo > 1) {
@@ -1626,13 +1576,12 @@ const Game = {
                 if (ms > this.shieldMilestone) {
                     this.shieldMilestone = ms;
                     p.shield(3);
-                    UI.radio('🛡 رصيد ترقية! درع مؤقت', 2500);
+                    UI.radio('🛡 درع مؤقت!', 2500);
                     Audio.play('check');
                 }
             }
         }
 
-        // Checkpoints
         for (const cp of Level.checkpoints) {
             if (cp.on) continue;
             const cb = cp.bounds(), pb = p.bounds;
@@ -1642,11 +1591,10 @@ const Game = {
                 Level.checkpoint = { x: cp.x - 10, y: cp.y - 20 };
                 Audio.play('check');
                 Particles.spawn(cp.x + 13, cp.y, 10, '#44ff44', 120, .8, 200, 3);
-                UI.radio('✓ CHECKPOINT — تم التفعيل');
+                UI.radio('✓ CHECKPOINT');
             }
         }
 
-        // Obstacles
         if (p.invuln <= 0) {
             for (const o of Level.obstacles) {
                 const ob = o.bounds(), pb = p.bounds;
@@ -1660,7 +1608,6 @@ const Game = {
             }
         }
 
-        // Enemies
         if (p.invuln <= 0) {
             for (const e of Level.enemies) {
                 const eb = e.bounds(), pb = p.bounds;
@@ -1674,7 +1621,6 @@ const Game = {
             }
         }
 
-        // Storm damage
         if (Level.data.storm && Level.stormI > .4) {
             p.sp -= 8 * dt;
             if (p.sp <= 0 && Math.random() < .05) {
@@ -1684,7 +1630,6 @@ const Game = {
             }
         }
 
-        // Finish
         if (!Level.endless && p.x >= Level.finishX && !p.finishLock) {
             p.finishLock = true;
             this.complete();
@@ -1693,7 +1638,6 @@ const Game = {
 
         UI.hud(p, Level, this.coins);
 
-        // Storm particles (reduced)
         if (Level.data.storm && Level.stormI > .2 && Math.random() < .3) {
             Particles.spawn(this.cam.x + CFG.W + 40, Math.random() * CFG.H, 1, '#d4a373', 0, .7, -30, 2);
             const last = Particles.list[Particles.list.length - 1];
@@ -1715,16 +1659,17 @@ const Game = {
 
         if (Level.data.storm) Bg.storm(ctx, Level.stormI, Level.time);
 
-        // Dark overlay for night/cave themes
-        if (Level.data.theme === 'night' || Level.data.theme === 'cave') {
+        // Dark overlay
+        const theme = Level.data.theme;
+        if (theme === 'night' || theme === 'cave') {
             Bg.darkness(ctx, this.player, this.cam);
             if (this.player) {
                 const px = this.player.x - this.cam.x + this.cam.ox;
                 const py = this.player.y - this.cam.y + this.cam.oy;
                 ctx.save();
                 ctx.globalCompositeOperation = 'lighter';
-                const g = ctx.createRadialGradient(px, py, 0, px, py, 180);
-                g.addColorStop(0, 'rgba(255,220,150,.22)');
+                const g = ctx.createRadialGradient(px, py, 0, px, py, 200);
+                g.addColorStop(0, 'rgba(255,220,150,.25)');
                 g.addColorStop(1, 'rgba(255,220,150,0)');
                 ctx.fillStyle = g;
                 ctx.fillRect(0, 0, CFG.W, CFG.H);
@@ -1734,7 +1679,7 @@ const Game = {
     }
 };
 
-/* ============ BOOT ============ */
+/* ========== BOOT ========== */
 (function boot() {
     const ldFill = document.getElementById('ldFill');
     const ldPct = document.getElementById('ldPct');
@@ -1751,7 +1696,7 @@ const Game = {
             try { Game.init(); }
             catch(e) {
                 console.error(e);
-                alert('خطأ في بدء اللعبة: ' + e.message);
+                alert('خطأ: ' + e.message);
             }
         }, 400);
     };
